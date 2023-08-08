@@ -1,0 +1,55 @@
+{
+  "_format": "ethers-rs-sol-cache-3",
+  "paths": {
+    "artifacts": "out",
+    "build_infos": "out/build-info",
+    "sources": "contracts",
+    "tests": "test",
+    "scripts": "script",
+    "libraries": [
+      "node_modules"
+    ]
+  },
+  "files": {
+    "contracts/IERC7412.sol": {
+      "lastModificationDate": 1691519868858,
+      "contentHash": "4d2f0e6db33d441227d3c9501153eb79",
+      "sourceName": "contracts/IERC7412.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "paris",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "^0.4.24",
+      "artifacts": {
+        "IERC7412": {
+          "0.4.26+commit.4563c3fc.Linux.gcc": "IERC7412.sol/IERC7412.json"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+	"compilerOptions": {
+		"noEmit": true,
+		"target": "ES2018",
+		"module": "CommonJS",
+		"moduleResolution": "node",
+		"declaration": true,
+		"declarationMap": true,
+		"sourceMap": true,
+		"strict": true,
+		"allowSyntheticDefaultImports": true,
+		"esModuleInterop": true,
+		"resolveJsonModule": false,
+		"rootDirs": ["./src"],
+		"skipLibCheck": true
+	},
+	"include": ["./src"],
+	"exclude": ["dist", "node_modules"]
+}

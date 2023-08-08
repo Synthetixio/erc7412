@@ -1,0 +1,26 @@
+{
+  "name": "erc7412",
+  "version": "0.1.0",
+  "description": "",
+  "main": "dist/src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Synthetixio/erc7412.git"
+  },
+  "keywords": [
+    "ethereum"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Synthetixio/erc7412/issues"
+  },
+  "homepage": "https://github.com/Synthetixio/erc7412#readme",
+  "dependencies": {
+    "typechain": "^8.3.1",
+    "viem": "^1.5.3"
+  }
+}
