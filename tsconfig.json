@@ -1,6 +1,5 @@
 {
 	"compilerOptions": {
-		"noEmit": true,
 		"target": "ES2018",
 		"module": "CommonJS",
 		"moduleResolution": "node",
@@ -10,9 +9,10 @@
 		"strict": true,
 		"allowSyntheticDefaultImports": true,
 		"esModuleInterop": true,
-		"resolveJsonModule": false,
+		"resolveJsonModule": true,
 		"rootDirs": ["./src"],
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"outDir": "./dist"
 	},
 	"include": ["./src"],
 	"exclude": ["dist", "node_modules"]

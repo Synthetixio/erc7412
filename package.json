@@ -20,7 +20,13 @@
   },
   "homepage": "https://github.com/Synthetixio/erc7412#readme",
   "dependencies": {
+    "@usecannon/cli": "^2.4.21",
+    "node-fetch": "^2.6.12",
     "typechain": "^8.3.1",
     "viem": "^1.5.3"
+  },
+  "devDependencies": {
+    "@types/node-fetch": "^2.6.4",
+    "typescript": "^5.1.6"
   }
 }
