@@ -1,4 +1,4 @@
-import viem from "viem";
+import * as viem from "viem";
 
 import fetch from "node-fetch";
 
@@ -26,21 +26,29 @@ export class EIP7412 {
 				await client.call(multicallTxn);
 				return multicallTxn;
 			} catch (error) {
-				console.log("GOT ERROR DETAILS", error);
+				//console.log("GOT ERROR DETAILS", JSON.stringify(error, null, 2));
 				const err = viem.decodeErrorResult({
 					abi: IERC7412.abi,
-					data: (error as viem.RpcError).details as viem.Hex,
+					data: ((error as viem.CallExecutionError).cause as any).cause.error.data as viem.Hex,
 				});
 				if (err.errorName === "OracleDataRequired") {
+					const oracleRequestData = err.args![1] as viem.Hex;
 					const signedRequiredData = await this.fetchOffchainData(
 						client,
 						err.args![0] as viem.Address,
-						err.args![1] as viem.Hex,
+						oracleRequestData,
 					);
 					multicallCalls.unshift({
 						to: err.args![0] as viem.Address,
-						data: signedRequiredData,
+						data: viem.encodeFunctionData({
+							abi: IERC7412.abi,
+							functionName: "fulfillOracleData",
+							args: [oracleRequestData, signedRequiredData],
+						}),
 					});
+				} else if (err.errorName === "OracleFeeRequired") {
+					const requiredFee = err.args![0] as bigint;
+					multicallCalls[0].value = requiredFee;
 				} else {
 					throw error;
 				}
@@ -54,18 +62,25 @@ export class EIP7412 {
 		data: viem.Hex,
 	): Promise<viem.Hex> {
 		const oracleProvider = viem.hexToString(
-			(await client.readContract({
-				abi: IERC7412.abi,
-				address: requester,
-				functionName: "oracleId",
-				args: [],
-			})) as unknown as viem.Hex,
+			viem.trim(
+				(await client.readContract({
+					abi: IERC7412.abi,
+					address: requester,
+					functionName: "oracleId",
+					args: [],
+				})) as unknown as viem.Hex,
+				{ dir: "right" },
+			),
 		);
 
 		const url = this.providers.get(oracleProvider);
 
 		if (url === undefined) {
-			throw new Error("oracle provider not supported");
+			throw new Error(
+				`oracle provider ${oracleProvider} not supported (supported providers: ${Array.from(
+					this.providers.keys(),
+				).join(",")})`,
+			);
 		}
 		return this.fetch(url, data);
 	}
@@ -82,6 +97,6 @@ export class EIP7412 {
 		if (response.status !== 200) {
 			throw new Error("error fetching data");
 		}
-		return (await response.json()).result;
+		return (await response.text()) as viem.Hex;
 	}
 }
