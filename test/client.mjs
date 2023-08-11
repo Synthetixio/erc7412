@@ -1,18 +1,18 @@
-import erc7412 from "../dist/src/index.js";
+import eip7412 from "../dist/src/index.js";
 import * as viem from "viem";
 
 import { build, runRpc, getProvider, getFoundryArtifact, ChainDefinition } from "@usecannon/cli";
 
 import http from "http";
 
-async function do7412CompatibleCall(client, multicallFunc, greeterAddress, greeterFunc) {
+async function do7412CompatibleCall(client, multicallFunc, addressToCall, functionName) {
 	const providers = new Map();
 	providers.set("TEST", "http://localhost:8000");
-	const converter = new erc7412.EIP7412(providers, multicallFunc);
+	const converter = new eip7412.EIP7412(providers, multicallFunc);
 
 	const newTx = await converter.wrap(client, {
-		to: greeterAddress,
-		data: greeterFunc,
+		to: addressToCall,
+		data: functionName,
 	});
 
 	console.log("ready to execute txn", newTx);

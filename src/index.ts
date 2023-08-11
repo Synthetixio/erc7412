@@ -89,13 +89,12 @@ export class EIP7412 {
 		const response = await fetch(url, {
 			method: "POST",
 			headers: {
-				"Content-Type": "application/json",
-				"Content-Length": data.length.toString(),
+				"Content-Type": "text/plain",
 			},
 			body: data,
 		});
 		if (response.status !== 200) {
-			throw new Error("error fetching data");
+			throw new Error(`error fetching data (${response.status}): ${await response.text()}`);
 		}
 		return (await response.text()) as viem.Hex;
 	}
