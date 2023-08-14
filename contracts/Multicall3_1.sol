@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.12;
 
-/// @title Multicall3
+/// @title Multicall3.1
 /// @notice Aggregate results from multiple function calls
 /// @dev Modified for support to bubble errors
 /// @dev Multicall & Multicall2 backwards-compatible
@@ -12,7 +12,7 @@ pragma solidity 0.8.12;
 /// @author Andreas Bigger <andreas@nascent.xyz>
 /// @author Matt Solomon <matt@mattsolomon.dev>
 /// @author Daniel Beal <db@cc.snxdao.io>
-contract Multicall3 {
+contract Multicall3_1 {
     struct Call {
         address target;
         bytes callData;

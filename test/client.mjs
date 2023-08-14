@@ -1,30 +1,35 @@
 import eip7412 from "../dist/src/index.js";
+import http from "http";
 import * as viem from "viem";
-
+import { privateKeyToAccount } from 'viem/accounts'
 import { build, runRpc, getProvider, getFoundryArtifact, ChainDefinition } from "@usecannon/cli";
 
-import http from "http";
-
-async function do7412CompatibleCall(client, multicallFunc, addressToCall, functionName) {
-	const providers = new Map();
+async function generate7412CompatibleCall(client, multicallFunc, addressToCall, functionName) {
+	const providers = new Map(); // This may ultimately be a map of oracleIds to functions (that take configuration) for resolving oracle queries. (e.g. provide a custom gateway URL to a function with logic that parses signedOffchainData from a JSON response)
 	providers.set("TEST", "http://localhost:8000");
+
 	const converter = new eip7412.EIP7412(providers, multicallFunc);
 
-	const newTx = await converter.wrap(client, {
+	return await converter.enableERC7412(client, {
 		to: addressToCall,
 		data: functionName,
 	});
-
-	console.log("ready to execute txn", newTx);
-	process.exit(0);
 }
 
 function startWebServer() {
 	return new Promise((resolve) => {
 		http
 			.createServer((req, res) => {
-				res.writeHead(200, { "Content-Type": "text/plain" });
-				res.end(viem.encodeAbiParameters([{ type: "string" }], [`Hello World ${req.data}`]));
+				let body = '';
+				req.on('data', chunk => {
+					body += chunk;
+				});
+
+				req.on('end', () => {
+					res.writeHead(200, { "Content-Type": "text/plain" });
+					res.end(viem.encodeAbiParameters([{ type: "string" }], [`Hello World ${viem.hexToNumber(body)}`]));
+				});
+
 			})
 			.listen(8000, resolve);
 	});
@@ -42,13 +47,9 @@ async function makeTestEnv() {
 		def: new ChainDefinition({
 			name: "erc7412test",
 			version: "0.0.1",
-			import: {
-				// regular multicall3 contract does not work because it does not bubble up errors
-				//multicall: { source: "multicall:latest" },
-			},
 			contract: {
 				Multicall: {
-					artifact: "Multicall3",
+					artifact: "Multicall3_1", // using "multicall3.1" because it bubbles up errors
 				},
 				OffchainGreeter: {
 					artifact: "OffchainGreeter",
@@ -62,7 +63,6 @@ async function makeTestEnv() {
 
 makeTestEnv().then((netInfo) => {
 	const senderAddr = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-	console.log("created test environment");
 
 	const greeterAddress = netInfo.outputs.contracts.OffchainGreeter.address;
 	const greeterFunc = viem.encodeFunctionData({
@@ -98,23 +98,50 @@ makeTestEnv().then((netInfo) => {
 		};
 	}
 
-	const client = viem.createPublicClient({
+	const walletConfig = {
 		chain: {
 			nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
-			chainId: 13370,
+			id: 13370,
 			chainName: "Cannon Localhost",
 			rpcUrls: { default: { http: ["http://localhost:8545"] } },
 			blockExplorerUrls: ["http://localhost:8000"],
 		},
 		transport: viem.custom({
 			request: async (req) => {
-				//console.log("received request", req);
 				const res = await netInfo.provider.send(req.method, req.params);
-				//console.log("res", res);
 				return res;
 			},
 		}),
-	});
+	};
 
-	do7412CompatibleCall(client, makeMulticall, greeterAddress, greeterFunc);
+	const client = viem.createPublicClient(walletConfig);
+	const walletClient = viem.createWalletClient({
+		account: privateKeyToAccount("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"),
+		transport: walletConfig.transport,
+		chain: walletConfig.chain,
+	})
+
+	generate7412CompatibleCall(client, makeMulticall, greeterAddress, greeterFunc).then((tx) => {
+		console.log("Sending multicall transaction with oracle data")
+		walletClient.sendTransaction({
+			account: senderAddr,
+			to: tx.to,
+			data: tx.data,
+			value: tx.value,
+		}).then((hash) => {
+			console.log("Multicall transaction hash: " + hash);
+			client.waitForTransactionReceipt({ hash }).then(() => {
+				console.log("Multicall transaction mined");
+				client.readContract({
+					address: greeterAddress,
+					abi: netInfo.outputs.contracts.OffchainGreeter.abi,
+					functionName: "greet",
+					args: [3],
+				}).then((res) => {
+					console.log(`Oracle data "${res}" is available on chain`)
+					process.exit(0);
+				})
+			});
+		})
+	});
 });

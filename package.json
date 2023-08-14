@@ -4,7 +4,8 @@
   "description": "",
   "main": "dist/src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "forge build && tsc",
+    "test": "node ./test/client.mjs"
   },
   "repository": {
     "type": "git",
@@ -20,7 +21,7 @@
   },
   "homepage": "https://github.com/Synthetixio/erc7412#readme",
   "dependencies": {
-    "@usecannon/cli": "^2.4.21",
+    "@usecannon/cli": "^2.5.0",
     "node-fetch": "^2.6.12",
     "typechain": "^8.3.1",
     "viem": "^1.5.3"
