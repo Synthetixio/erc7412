@@ -48,11 +48,11 @@ export class EIP7412 {
             to: err.args![0] as viem.Address,
             data: viem.encodeFunctionData({
               abi: IERC7412.abi,
-              functionName: "fulfillOracleData",
+              functionName: "fulfillOracleQuery",
               args: [oracleRequestData, signedRequiredData],
             }),
           });
-        } else if (err.errorName === "OracleFeeRequired") {
+        } else if (err.errorName === "FeeRequired") {
           const requiredFee = err.args![0] as bigint;
           multicallCalls[multicallCalls.length - 2].value = requiredFee;
         } else {
