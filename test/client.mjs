@@ -1,14 +1,14 @@
-import eip7412 from "../dist/src/index.js";
+import eip7412, { DefaultAdapter } from "../dist/src/index.js";
 import http from "http";
 import * as viem from "viem";
 import { privateKeyToAccount } from 'viem/accounts'
 import { build, runRpc, getProvider, getFoundryArtifact, ChainDefinition } from "@usecannon/cli";
 
 async function generate7412CompatibleCall(client, multicallFunc, addressToCall, functionName) {
-	const providers = new Map(); // This may ultimately be a map of oracleIds to functions (that take configuration) for resolving oracle queries. (e.g. provide a custom gateway URL to a function with logic that parses signedOffchainData from a JSON response)
-	providers.set("TEST", "http://localhost:8000");
+    const adapters = [];
+    adapters.push(new DefaultAdapter("TEST", "http://localhost:8000"));
 
-	const converter = new eip7412.EIP7412(providers, multicallFunc);
+	const converter = new eip7412.EIP7412(adapters, multicallFunc);
 
 	return await converter.enableERC7412(client, {
 		to: addressToCall,
