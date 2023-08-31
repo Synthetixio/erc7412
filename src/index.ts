@@ -20,7 +20,7 @@ export class EIP7412 {
   ) {
     this.adapters = new Map();
     adapters.forEach((adapter) => {
-        this.adapters.set(adapter.getOracleId(), adapter);
+      this.adapters.set(adapter.getOracleId(), adapter);
     });
     this.multicallFunc = multicallFunc;
   }
@@ -67,10 +67,10 @@ export class EIP7412 {
           }
 
           const signedRequiredData = await adapter.fetchOffchainData(
-              client,
-              oracleAddress,
-              oracleQuery
-          )
+            client,
+            oracleAddress,
+            oracleQuery
+          );
 
           multicallCalls.splice(multicallCalls.length - 1, 0, {
             to: err.args![0] as viem.Address,
