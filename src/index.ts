@@ -1,8 +1,9 @@
 import * as viem from "viem";
-
-import fetch from "node-fetch";
-
 import IERC7412 from "../out/IERC7412.sol/IERC7412.json";
+import { Adapter } from "./adapter";
+
+export { Adapter } from "./adapter";
+export { DefaultAdapter } from "./adapters/default";
 
 type TransactionRequest = Pick<
   viem.TransactionRequest,
@@ -10,14 +11,17 @@ type TransactionRequest = Pick<
 >;
 
 export class EIP7412 {
-  providers: Map<string, string>;
+  adapters: Map<string, Adapter>;
   multicallFunc: (txs: TransactionRequest[]) => TransactionRequest;
 
   constructor(
-    providers: Map<string, string>,
+    adapters: Adapter[],
     multicallFunc: (txs: TransactionRequest[]) => TransactionRequest
   ) {
-    this.providers = providers;
+    this.adapters = new Map();
+    adapters.forEach((adapter) => {
+      this.adapters.set(adapter.getOracleId(), adapter);
+    });
     this.multicallFunc = multicallFunc;
   }
 
@@ -38,18 +42,42 @@ export class EIP7412 {
             .data as viem.Hex, // A configurable or generalized solution is needed for finding the error data
         });
         if (err.errorName === "OracleDataRequired") {
-          const oracleRequestData = err.args![1] as viem.Hex;
-          const signedRequiredData = await this.fetchOffchainData(
-            client,
-            err.args![0] as viem.Address,
-            oracleRequestData
+          const oracleQuery = err.args![1] as viem.Hex;
+          const oracleAddress = err.args![0] as viem.Address;
+
+          const oracleId = viem.hexToString(
+            viem.trim(
+              (await client.readContract({
+                abi: IERC7412.abi,
+                address: oracleAddress,
+                functionName: "oracleId",
+                args: [],
+              })) as unknown as viem.Hex,
+              { dir: "right" }
+            )
           );
+
+          const adapter = this.adapters.get(oracleId);
+          if (adapter === undefined) {
+            throw new Error(
+              `oracle ${oracleId} not supported (supported oracles: ${Array.from(
+                this.adapters.keys()
+              ).join(",")})`
+            );
+          }
+
+          const signedRequiredData = await adapter.fetchOffchainData(
+            client,
+            oracleAddress,
+            oracleQuery
+          );
+
           multicallCalls.splice(multicallCalls.length - 1, 0, {
             to: err.args![0] as viem.Address,
             data: viem.encodeFunctionData({
               abi: IERC7412.abi,
               functionName: "fulfillOracleQuery",
-              args: [oracleRequestData, signedRequiredData],
+              args: [oracleQuery, signedRequiredData],
             }),
           });
         } else if (err.errorName === "FeeRequired") {
@@ -60,50 +88,5 @@ export class EIP7412 {
         }
       }
     }
-  }
-
-  async fetchOffchainData(
-    client: viem.PublicClient,
-    requester: viem.Address,
-    data: viem.Hex
-  ): Promise<viem.Hex> {
-    const oracleProvider = viem.hexToString(
-      viem.trim(
-        (await client.readContract({
-          abi: IERC7412.abi,
-          address: requester,
-          functionName: "oracleId",
-          args: [],
-        })) as unknown as viem.Hex,
-        { dir: "right" }
-      )
-    );
-
-    const url = this.providers.get(oracleProvider);
-
-    if (url === undefined) {
-      throw new Error(
-        `oracle provider ${oracleProvider} not supported (supported providers: ${Array.from(
-          this.providers.keys()
-        ).join(",")})`
-      );
-    }
-    return this.fetch(url, data);
-  }
-
-  async fetch(url: string, data: viem.Hex): Promise<viem.Hex> {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "text/plain",
-      },
-      body: data,
-    });
-    if (response.status !== 200) {
-      throw new Error(
-        `error fetching data (${response.status}): ${await response.text()}`
-      );
-    }
-    return (await response.text()) as viem.Hex;
   }
 }
