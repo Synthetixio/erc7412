@@ -12,14 +12,16 @@ type TransactionRequest = Pick<
 
 export class EIP7412 {
   adapters: Map<string, Adapter>;
-  multicallFunc: (txs: TransactionRequest[]) => TransactionRequest;
+  multicallFunc:
+    | ((txs: TransactionRequest[]) => TransactionRequest)
+    | undefined;
 
   constructor(
-    adapters: Adapter[],
-    multicallFunc: (txs: TransactionRequest[]) => TransactionRequest
+    adapters?: Adapter[],
+    multicallFunc?: (txs: TransactionRequest[]) => TransactionRequest
   ) {
     this.adapters = new Map();
-    adapters.forEach((adapter) => {
+    adapters?.forEach((adapter) => {
       this.adapters.set(adapter.getOracleId(), adapter);
     });
     this.multicallFunc = multicallFunc;
@@ -30,11 +32,18 @@ export class EIP7412 {
     tx: TransactionRequest
   ): Promise<TransactionRequest> {
     let multicallCalls: TransactionRequest[] = [tx];
+
     while (true) {
       try {
-        const multicallTxn = this.multicallFunc(multicallCalls);
-        await client.call(multicallTxn);
-        return multicallTxn;
+        if (multicallCalls.length == 1) {
+          return multicallCalls[0];
+        } else if (!this.multicallFunc) {
+          throw "multicallFunc is not defined";
+        } else {
+          const multicallTxn = this.multicallFunc(multicallCalls);
+          await client.call(multicallTxn);
+          return multicallTxn;
+        }
       } catch (error) {
         const err = viem.decodeErrorResult({
           abi: IERC7412.abi,
