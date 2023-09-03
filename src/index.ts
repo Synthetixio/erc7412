@@ -37,6 +37,7 @@ export class EIP7412 {
     while (true) {
       try {
         if (multicallCalls.length == 1) {
+          await client.call(multicallCalls[0]);
           return multicallCalls[0];
         } else if (!this.multicallFunc) {
           throw "multicallFunc is not defined";
