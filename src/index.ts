@@ -1,6 +1,7 @@
 import * as viem from "viem";
 import IERC7412 from "../out/IERC7412.sol/IERC7412.json";
 import { Adapter } from "./adapter";
+import { parseError } from "./parseError";
 
 export { Adapter } from "./adapter";
 export { DefaultAdapter } from "./adapters/default";
@@ -47,8 +48,7 @@ export class EIP7412 {
       } catch (error) {
         const err = viem.decodeErrorResult({
           abi: IERC7412.abi,
-          data: ((error as viem.CallExecutionError).cause as any).cause.error
-            .data as viem.Hex, // A configurable or generalized solution is needed for finding the error data
+          data: parseError(error as viem.CallExecutionError),
         });
         if (err.errorName === "OracleDataRequired") {
           const oracleQuery = err.args![1] as viem.Hex;
