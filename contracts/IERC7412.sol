@@ -29,8 +29,7 @@ interface IERC7412 {
 	/**
 	 * @dev Upon resolving the oracle query, the client should call this function to post the data to the
 	 * blockchain.
-	 * @param oracleQuery The query that was sent to the off-chain interface.
 	 * @param signedOffchainData The data that was returned from the off-chain interface, signed by the oracle.
 	 */
-	function fulfillOracleQuery(bytes calldata oracleQuery, bytes calldata signedOffchainData) payable external;
+	function fulfillOracleQuery(bytes calldata signedOffchainData) payable external;
 }

@@ -87,7 +87,7 @@ export class EIP7412 {
             data: viem.encodeFunctionData({
               abi: IERC7412.abi,
               functionName: "fulfillOracleQuery",
-              args: [oracleQuery, signedRequiredData],
+              args: [signedRequiredData],
             }),
           });
         } else if (err.errorName === "FeeRequired") {

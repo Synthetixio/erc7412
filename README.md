@@ -7,5 +7,6 @@ This repository contains a basic [reference implementation for a client library]
 ```
 npm i
 npm run build
+forge build
 npm run test
 ```

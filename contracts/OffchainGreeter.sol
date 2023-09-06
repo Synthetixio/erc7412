@@ -20,8 +20,7 @@ contract OffchainGreeter is IERC7412 {
 		return "TEST";
 	}
 	
-	function fulfillOracleQuery(bytes calldata, bytes calldata signedOffchainData) payable external {
-		
+	function fulfillOracleQuery(bytes calldata signedOffchainData) payable external {
 		// charge a fee for the oracle service
 		if (msg.value < FEE) {
 			revert FeeRequired(FEE);
