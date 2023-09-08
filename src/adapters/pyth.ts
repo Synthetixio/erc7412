@@ -17,10 +17,10 @@ export class PythAdapter implements Adapter {
     _requester: viem.Address,
     data: viem.Hex
   ): Promise<viem.Hex> {
-    const [priceIds, updateType, _stalenessTolerance] = viem.decodeAbiParameters([
-      { name: "priceIds", type: "bytes32[]" },
+    const [priceIds, updateType, stalenessTolerance] = viem.decodeAbiParameters([
       { name: "updateType", type: "uint8" },
       { name: "stalenessTolerance", type: "uint64" },
+      { name: "priceIds", type: "bytes32[]" },
     ], data);
 
     if (updateType as number !== 1) {
@@ -30,7 +30,10 @@ export class PythAdapter implements Adapter {
     let updateData = await this.connection.getPriceFeedsUpdateData(priceIds as string[]);
 
     return viem.encodeAbiParameters([
-      { type: "bytes[]" },
-    ], [updateData]);
+      { type: "uint8", name: "updateType" },
+      { type: "uint64", name: "stalenessTolerance" },
+      { type: "bytes32[]", name: "priceIds" },
+      { type: "bytes[]", name: "updateData" },
+    ], [updateType, stalenessTolerance, priceIds, updateData]);
   }
 }
