@@ -1,6 +1,6 @@
 {
   "name": "erc7412",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "",
   "main": "dist/src/index.js",
   "scripts": {
@@ -11,7 +11,9 @@
     "type": "git",
     "url": "git+https://github.com/Synthetixio/erc7412.git"
   },
-	"files": [ "dist/**" ],
+  "files": [
+    "dist/**"
+  ],
   "keywords": [
     "ethereum"
   ],
