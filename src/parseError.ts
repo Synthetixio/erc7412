@@ -11,9 +11,8 @@ export function parseError(error: any): viem.Hex {
 		if (error.data) {
 			return error.data;
 		}
-	} catch (err) {
-		// rethrow the error (and log it so we can see the original)
-		console.error("got unknown error in erc7412 parse", error);
-		throw error;
-	}
+	} catch (err) {}
+	// rethrow the error (and log it so we can see the original)
+	console.error("got unknown error in erc7412 parse", error);
+	throw error;
 }
