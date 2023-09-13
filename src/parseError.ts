@@ -8,8 +8,8 @@ export function parseError(error: any): viem.Hex {
 			return error.cause?.cause?.error?.data;
 		}
 
-		if (error.data) {
-			return error.data;
+		if (error.error.data) {
+			return error.error.data;
 		}
 	} catch (err) {}
 	// rethrow the error (and log it so we can see the original)
