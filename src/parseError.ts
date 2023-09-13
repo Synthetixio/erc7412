@@ -6,14 +6,15 @@ export function parseError(error: any): viem.Hex {
 	console.debug("cause 1", error.cause);
 	console.debug("OK", JSON.stringify(error.cause));
 	console.debug("cause 2", error.cause.cause);
-	console.debug("cause 2 error", error.cause.cause.error);
+	console.debug("cause 3", error.cause.cause.cause);
+	console.debug("cause 3 error", error.cause.cause.cause.error);
 	try {
 		if (error.cause?.cause?.error?.data) {
 			return error.cause?.cause?.error?.data;
 		}
 
-		if (error.cause?.error?.data) {
-			return error.cause?.error?.data;
+		if (error.cause?.cause?.cause?.error?.data) {
+			return error.cause?.cause?.cause?.error?.data;
 		}
 	} catch (err) {
 		console.error("exception in erc7412 error parser:", err);
