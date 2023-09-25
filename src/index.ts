@@ -30,9 +30,17 @@ export class EIP7412 {
 
   async enableERC7412(
     client: viem.PublicClient,
-    tx: TransactionRequest
+    tx: TransactionRequest | TransactionRequest[]
   ): Promise<TransactionRequest> {
-    let multicallCalls: TransactionRequest[] = [tx];
+    let multicallCalls: TransactionRequest[];
+
+    if (Array.isArray(tx)) {
+      multicallCalls = tx;
+    } else {
+      multicallCalls = [tx];
+    }
+
+    const initialMulticallLength = multicallCalls.length;
 
     while (true) {
       try {
@@ -82,17 +90,23 @@ export class EIP7412 {
             oracleQuery
           );
 
-          multicallCalls.splice(multicallCalls.length - 1, 0, {
-            to: err.args![0] as viem.Address,
-            data: viem.encodeFunctionData({
-              abi: IERC7412.abi,
-              functionName: "fulfillOracleQuery",
-              args: [signedRequiredData],
-            }),
-          });
+          multicallCalls.splice(
+            multicallCalls.length - initialMulticallLength,
+            0,
+            {
+              to: err.args![0] as viem.Address,
+              data: viem.encodeFunctionData({
+                abi: IERC7412.abi,
+                functionName: "fulfillOracleQuery",
+                args: [signedRequiredData],
+              }),
+            }
+          );
         } else if (err.errorName === "FeeRequired") {
           const requiredFee = err.args![0] as bigint;
-          multicallCalls[multicallCalls.length - 2].value = requiredFee;
+          multicallCalls[
+            multicallCalls.length - initialMulticallLength - 1
+          ].value = requiredFee;
         } else {
           throw error;
         }
