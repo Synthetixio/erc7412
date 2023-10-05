@@ -31,7 +31,11 @@
   },
   "peerDependencies": {
     "@pythnetwork/pyth-evm-js": "^1.25.0",
-    "@pythnetwork/pyth-sdk-solidity": "^2.2.1"
+    "@pythnetwork/pyth-sdk-solidity": "^2.2.1",
+    "@types/elliptic": "^6.4.15",
+    "axios": "^1.5.1",
+    "elliptic": "^6.5.4",
+    "web3": "^4.1.2"
   },
   "devDependencies": {
     "@types/node-fetch": "^2.6.4",
