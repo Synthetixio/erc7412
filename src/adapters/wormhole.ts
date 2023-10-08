@@ -10,6 +10,8 @@ import {
 	sign,
 } from "./wormhole-lib";
 
+import * as chains from "viem/chains";
+
 const QUERY_URL = "https://testnet.ccq.vaa.dev/v1/query";
 const ETH_DEV_PRIVATE_KEY = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 
@@ -69,6 +71,16 @@ const WormholeSignatureType = {
 	type: "tuple[]",
 };
 
+const selectorToId: { [key: string]: number } = {
+	"5": 80001,
+	"23": 421613,
+};
+
+const selectorToRpc: { [key: string]: string } = {
+	"5": "https://polygon-mumbai-bor.publicnode.com",
+	"23": "https://arbitrum-goerli.publicnode.com",
+};
+
 export class WormholeAdapter implements Adapter {
 	readonly apiKey: string;
 	readonly queryUrl: string;
@@ -85,7 +97,7 @@ export class WormholeAdapter implements Adapter {
 	}
 
 	async fetchOffchainData(
-		_client: viem.Client,
+		_client: viem.PublicClient,
 		_requester: viem.Address,
 		data: viem.Hex,
 	): Promise<viem.Hex> {
@@ -94,26 +106,45 @@ export class WormholeAdapter implements Adapter {
 		const perChainRequests: PerChainQueryRequest[] = [];
 
 		for (const ccq of ccqs) {
+			console.log("ccq", ccq);
+			console.log("getting block");
+			const block =
+				"0x" +
+				(
+					(await viem
+						.createPublicClient({
+							chain: Object.values(chains).find(
+								(c) => c.id === selectorToId[ccq.chainSelector.toString()],
+							),
+							transport: viem.http(selectorToRpc[ccq.chainSelector.toString()]),
+						})
+						.getBlockNumber()) - BigInt(10)
+				).toString(16);
+
+			console.log("got block", block);
 			perChainRequests.push(
 				new PerChainQueryRequest(
-					ccq.chainSelector,
-					new EthCallQueryRequest("", [{ to: ccq.target, data: ccq.data }]),
+					Number(ccq.chainSelector),
+					new EthCallQueryRequest(block, [{ to: ccq.target, data: ccq.data }]),
 				),
 			);
 		}
 
 		const request = new QueryRequest(1, perChainRequests);
 		const serialized = request.serialize();
-		const digest = QueryRequest.digest("TESTNET", serialized);
-		const signature = sign(ETH_DEV_PRIVATE_KEY, digest);
+		//const digest = QueryRequest.digest("TESTNET", serialized);
+		//const signature = sign(ETH_DEV_PRIVATE_KEY, digest);
+		//console.log(Buffer.from(serialized).toString("hex"));
+		console.log("begin request");
 		const response = await axios.put<QueryResponse>(
 			QUERY_URL,
 			{
-				signature,
+				//signature,
 				bytes: Buffer.from(serialized).toString("hex"),
 			},
 			{ headers: { "X-API-Key": this.apiKey } },
 		);
+		console.log("end request");
 
 		return viem.encodeAbiParameters(
 			[{ type: "bytes", name: "signedOffchainData" }, WormholeSignatureType],
