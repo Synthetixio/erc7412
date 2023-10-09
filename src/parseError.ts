@@ -6,6 +6,12 @@ export function parseError(error: any): viem.Hex {
     if (error.cause?.data) {
       return error.cause?.data;
     }
+    if (error.cause?.cause?.data) {
+      return error.cause?.cause?.data;
+    }
+    if (error.cause?.cause?.cause?.data) {
+      return error.cause?.cause?.cause?.data;
+    }
     if (error.cause?.cause?.error?.data) {
       return error.cause?.cause?.error?.data;
     }
