@@ -43,13 +43,15 @@ export class PythAdapter implements Adapter {
       );
     } else if ((updateType as number) === 2) {
       const timestamp = stalenessOrTime;
-      // https://benchmarks.pyth.network/v1/updates/price/1693485033?ids=ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace
-      const result = await fetch(
-        `https://benchmarks.pyth.network/v1/updates/price/${timestamp}?ids=${priceIds}`
+      const unixTimestamp = Date.parse(timestamp.toString()) / 1000;
+
+      const [priceFeedUpdateVaa] = await this.connection.getVaa(
+        priceIds[0],
+        unixTimestamp
       );
 
-      const data = await result.json();
-      const updateData = data?.binary?.data as unknown as `0x${string}`[];
+      const priceFeedUpdate =
+        '0x' + Buffer.from(priceFeedUpdateVaa, 'base64').toString('hex');
 
       return viem.encodeAbiParameters(
         [
@@ -58,7 +60,7 @@ export class PythAdapter implements Adapter {
           { type: 'bytes32[]', name: 'priceIds' },
           { type: 'bytes[]', name: 'updateData' },
         ],
-        [updateType, timestamp, priceIds, updateData]
+        [updateType, timestamp, priceIds, [priceFeedUpdate as `0x${string}`]]
       );
     } else {
       throw new Error(`update type ${updateType} not supported`);
