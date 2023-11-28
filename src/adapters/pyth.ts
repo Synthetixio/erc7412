@@ -17,8 +17,7 @@ export class PythAdapter implements Adapter {
     _requester: viem.Address,
     data: viem.Hex
   ): Promise<viem.Hex> {
-    //TODO: update stalenessTolerance to a better name
-    const [updateType, stalenessTolerance, priceIds] = viem.decodeAbiParameters(
+    const [updateType, stalenessOrTime, priceIds] = viem.decodeAbiParameters(
       [
         { name: 'updateType', type: 'uint8' },
         { name: 'stalenessTolerance', type: 'uint64' },
@@ -28,9 +27,11 @@ export class PythAdapter implements Adapter {
     );
 
     if ((updateType as number) === 1) {
-      let updateData = await this.connection.getPriceFeedsUpdateData(
+      const stalenessTolerance = stalenessOrTime;
+      let updateData = (await this.connection.getPriceFeedsUpdateData(
         priceIds as string[]
-      );
+      )) as unknown as `0x${string}`[];
+
       return viem.encodeAbiParameters(
         [
           { type: 'uint8', name: 'updateType' },
@@ -41,10 +42,14 @@ export class PythAdapter implements Adapter {
         [updateType, stalenessTolerance, priceIds, updateData]
       );
     } else if ((updateType as number) === 2) {
-      //use SDK
-      let updateData = await fetch(
-        `https://benchmarks.pyth.network/v1/updates/price/${stalenessTolerance}?ids=${priceIds}`
+      const timestamp = stalenessOrTime;
+      // https://benchmarks.pyth.network/v1/updates/price/1693485033?ids=ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace
+      const result = await fetch(
+        `https://benchmarks.pyth.network/v1/updates/price/${timestamp}?ids=${priceIds}`
       );
+
+      const data = await result.json();
+      const updateData = data?.binary?.data as unknown as `0x${string}`[];
 
       return viem.encodeAbiParameters(
         [
@@ -53,7 +58,7 @@ export class PythAdapter implements Adapter {
           { type: 'bytes32[]', name: 'priceIds' },
           { type: 'bytes[]', name: 'updateData' },
         ],
-        [updateType, stalenessTolerance, priceIds, updateData]
+        [updateType, timestamp, priceIds, updateData]
       );
     } else {
       throw new Error(`update type ${updateType} not supported`);
