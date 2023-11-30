@@ -42,11 +42,11 @@ export class PythAdapter implements Adapter {
         [updateType, stalenessTolerance, priceIds, updateData]
       );
     } else if ((updateType as number) === 2) {
-      const timestamp = stalenessOrTime;
-      const unixTimestamp = Date.parse(timestamp.toString()) / 1000;
+      const timestamp = stalenessOrTime as unknown as bigint;
+      const unixTimestamp = Date.parse(timestamp?.toString()) / 1000;
 
       const [priceFeedUpdateVaa] = await this.connection.getVaa(
-        priceIds[0],
+        (priceIds as string[])[0],
         unixTimestamp
       );
 

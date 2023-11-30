@@ -1,14 +1,14 @@
-import * as viem from "viem";
-import IERC7412 from "../out/IERC7412.sol/IERC7412.json";
-import { Adapter } from "./adapter";
-import { parseError } from "./parseError";
+import * as viem from 'viem';
+import IERC7412 from '../out/IERC7412.sol/IERC7412.json';
+import { Adapter } from './adapter';
+import { parseError } from './parseError';
 
-export { Adapter } from "./adapter";
-export { DefaultAdapter } from "./adapters/default";
+export { Adapter } from './adapter';
+export { DefaultAdapter } from './adapters/default';
 
 type TransactionRequest = Pick<
   viem.TransactionRequest,
-  "to" | "data" | "value"
+  'to' | 'data' | 'value'
 >;
 
 export class EIP7412 {
@@ -40,18 +40,20 @@ export class EIP7412 {
           await client.call(multicallCalls[0]);
           return multicallCalls[0];
         } else if (!this.multicallFunc) {
-          throw "multicallFunc is not defined";
+          throw 'multicallFunc is not defined';
         } else {
           const multicallTxn = this.multicallFunc(multicallCalls);
           await client.call(multicallTxn);
           return multicallTxn;
         }
       } catch (error) {
+        console.log('error11', error);
+
         const err = viem.decodeErrorResult({
           abi: IERC7412.abi,
           data: parseError(error as viem.CallExecutionError),
         });
-        if (err.errorName === "OracleDataRequired") {
+        if (err.errorName === 'OracleDataRequired') {
           const oracleQuery = err.args![1] as viem.Hex;
           const oracleAddress = err.args![0] as viem.Address;
 
@@ -60,10 +62,10 @@ export class EIP7412 {
               (await client.readContract({
                 abi: IERC7412.abi,
                 address: oracleAddress,
-                functionName: "oracleId",
+                functionName: 'oracleId',
                 args: [],
               })) as unknown as viem.Hex,
-              { dir: "right" }
+              { dir: 'right' }
             )
           );
 
@@ -72,7 +74,7 @@ export class EIP7412 {
             throw new Error(
               `oracle ${oracleId} not supported (supported oracles: ${Array.from(
                 this.adapters.keys()
-              ).join(",")})`
+              ).join(',')})`
             );
           }
 
@@ -86,11 +88,11 @@ export class EIP7412 {
             to: err.args![0] as viem.Address,
             data: viem.encodeFunctionData({
               abi: IERC7412.abi,
-              functionName: "fulfillOracleQuery",
+              functionName: 'fulfillOracleQuery',
               args: [signedRequiredData],
             }),
           });
-        } else if (err.errorName === "FeeRequired") {
+        } else if (err.errorName === 'FeeRequired') {
           const requiredFee = err.args![0] as bigint;
           multicallCalls[multicallCalls.length - 2].value = requiredFee;
         } else {
