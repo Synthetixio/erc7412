@@ -17,16 +17,21 @@ export class PythAdapter implements Adapter {
     _requester: viem.Address,
     data: viem.Hex
   ): Promise<viem.Hex> {
-    const [updateType, stalenessOrTime, priceIds] = viem.decodeAbiParameters(
-      [
-        { name: 'updateType', type: 'uint8' },
-        { name: 'stalenessTolerance', type: 'uint64' },
-        { name: 'priceIds', type: 'bytes32[]' },
-      ],
+    const [updateType] = viem.decodeAbiParameters(
+      [{ name: 'updateType', type: 'uint8' }],
       data
     );
 
     if ((updateType as number) === 1) {
+      const [updateType, stalenessOrTime, priceIds] = viem.decodeAbiParameters(
+        [
+          { name: 'updateType', type: 'uint8' },
+          { name: 'stalenessTolerance', type: 'uint64' },
+          { name: 'priceIds', type: 'bytes32[]' },
+        ],
+        data
+      );
+
       const stalenessTolerance = stalenessOrTime;
       let updateData = (await this.connection.getPriceFeedsUpdateData(
         priceIds as string[]
@@ -42,12 +47,22 @@ export class PythAdapter implements Adapter {
         [updateType, stalenessTolerance, priceIds, updateData]
       );
     } else if ((updateType as number) === 2) {
-      const timestamp = stalenessOrTime as unknown as bigint;
-      const unixTimestamp = Date.parse(timestamp?.toString()) / 1000;
+      const [updateType, requestedTime, priceId] = viem.decodeAbiParameters(
+        [
+          { name: 'updateType', type: 'uint8' },
+          { name: 'requestedTime', type: 'uint64' },
+          { name: 'priceIds', type: 'bytes32' },
+        ],
+        data
+      );
+
+      // const unixTimestamp =
+      //   Date.parse(((requestedTime as unknown as bigint) * 1000n)?.toString()) /
+      //   1000;
 
       const [priceFeedUpdateVaa] = await this.connection.getVaa(
-        (priceIds as string[])[0],
-        unixTimestamp
+        priceId as string,
+        Number((requestedTime as unknown as bigint).toString())
       );
 
       const priceFeedUpdate =
@@ -60,7 +75,12 @@ export class PythAdapter implements Adapter {
           { type: 'bytes32[]', name: 'priceIds' },
           { type: 'bytes[]', name: 'updateData' },
         ],
-        [updateType, timestamp, priceIds, [priceFeedUpdate as `0x${string}`]]
+        [
+          updateType,
+          requestedTime,
+          [priceId],
+          [priceFeedUpdate as `0x${string}`],
+        ]
       );
     } else {
       throw new Error(`update type ${updateType} not supported`);
