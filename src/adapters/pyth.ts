@@ -56,10 +56,6 @@ export class PythAdapter implements Adapter {
         data
       );
 
-      // const unixTimestamp =
-      //   Date.parse(((requestedTime as unknown as bigint) * 1000n)?.toString()) /
-      //   1000;
-
       const [priceFeedUpdateVaa] = await this.connection.getVaa(
         priceId as string,
         Number((requestedTime as unknown as bigint).toString())
