@@ -47,8 +47,6 @@ export class EIP7412 {
           return multicallTxn;
         }
       } catch (error) {
-        console.log('error11', error);
-
         const err = viem.decodeErrorResult({
           abi: IERC7412.abi,
           data: parseError(error as viem.CallExecutionError),

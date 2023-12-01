@@ -103,7 +103,7 @@ async function generate7412CompatibleCall(client, multicallFunc, txn) {
   const adapters = [];
 
   // NOTE: add other providers here as needed
-  adapters.push(new PythAdapter('https://xc-testnet.pyth.network/'));
+  adapters.push(new PythAdapter('https://xc-mainnet.pyth.network/'));
 
   const converter = new eip7412.EIP7412(adapters, multicallFunc);
 
@@ -120,7 +120,8 @@ export async function hookForReadCall(txn) {
       },
     }),
   });
-  const multicall3Addr = '0xE2C5658cC5C448B48141168f3e475dF8f65A1e3e';
+
+  const multicall3Addr = '0xcbc8bDF9358BB3F5005B893a32b477e6B2F9f688';
   const multicallFunc = function makeMulticall3Call(calls) {
     const ret = viem.encodeFunctionData({
       abi: Multicall3ABI,
@@ -190,16 +191,48 @@ export async function hookForWriteCall(txn) {
 
 (async () => {
   // example call
+  // const call = await hookForReadCall({
+  //   to: '0x9863Dae3f4b5F4Ffe3A841a21565d57F2BA10E87', // perps competition market address
+  //   data: '0x41c2e8bd0000000000000000000000000000000000000000000000000000000000000064', // call to `computeFee` on the above contract. triggers a OracleDataRequired.
+  // });
+
+  // console.log(await provider.call(call));
+
+  const contract = new Contract('0xEa7a8f0fDD16Ccd46BA541Fb657a0A7FD7E36261', [
+    {
+      inputs: [
+        {
+          internalType: 'bytes32',
+          name: 'priceId',
+          type: 'bytes32',
+        },
+        {
+          internalType: 'uint64',
+          name: 'requestedTime',
+          type: 'uint64',
+        },
+      ],
+      name: 'getBenchmarkPrice',
+      outputs: [
+        {
+          internalType: 'int256',
+          name: '',
+          type: 'int256',
+        },
+      ],
+      stateMutability: 'view',
+      type: 'function',
+    },
+  ]);
+
+  const data = contract.interface.encodeFunctionData('getBenchmarkPrice', [
+    '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
+    '1693485033',
+  ]);
+
   const call = await hookForReadCall({
-  	to: "0x9863Dae3f4b5F4Ffe3A841a21565d57F2BA10E87", // perps competition market address
-  	data: "0x41c2e8bd0000000000000000000000000000000000000000000000000000000000000064", // call to `computeFee` on the above contract. triggers a OracleDataRequired.
+    to: '0xEa7a8f0fDD16Ccd46BA541Fb657a0A7FD7E36261', // Pyth Wrapper contract address
+    data, // call to `getBenchMarkPrice` on the above contract. triggers a OracleDataRequired.
   });
-
   console.log(await provider.call(call));
-
-//   const call = await hookForReadCall({
-//     to: '0xEa7a8f0fDD16Ccd46BA541Fb657a0A7FD7E36261', // Pyth Wrapper contract address
-//     data: '0x8f93ca56ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace0000000000000000000000000000000000000000000000000000000064f087e9', // call to `getBenchMarkPrice` on the above contract. triggers a OracleDataRequired.
-//   });
-//   console.log(await provider.call(call));
 })();
