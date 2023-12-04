@@ -1,7 +1,7 @@
 import { EvmPriceServiceConnection } from '@pythnetwork/pyth-evm-js';
 import { Adapter } from '../adapter';
 import * as viem from 'viem';
-
+import { Address } from 'viem';
 export class PythAdapter implements Adapter {
   private connection: EvmPriceServiceConnection;
   constructor(endpoint: string) {
@@ -22,7 +22,7 @@ export class PythAdapter implements Adapter {
       data
     );
 
-    if ((updateType as number) === 1) {
+    if (updateType === 1) {
       const [updateType, stalenessOrTime, priceIds] = viem.decodeAbiParameters(
         [
           { name: 'updateType', type: 'uint8' },
@@ -35,7 +35,7 @@ export class PythAdapter implements Adapter {
       const stalenessTolerance = stalenessOrTime;
       let updateData = (await this.connection.getPriceFeedsUpdateData(
         priceIds as string[]
-      )) as unknown as `0x${string}`[];
+      )) as unknown as Address[];
 
       return viem.encodeAbiParameters(
         [
@@ -46,7 +46,7 @@ export class PythAdapter implements Adapter {
         ],
         [updateType, stalenessTolerance, priceIds, updateData]
       );
-    } else if ((updateType as number) === 2) {
+    } else if (updateType === 2) {
       const [updateType, requestedTime, priceId] = viem.decodeAbiParameters(
         [
           { name: 'updateType', type: 'uint8' },
@@ -71,12 +71,7 @@ export class PythAdapter implements Adapter {
           { type: 'bytes32[]', name: 'priceIds' },
           { type: 'bytes[]', name: 'updateData' },
         ],
-        [
-          updateType,
-          requestedTime,
-          [priceId],
-          [priceFeedUpdate as `0x${string}`],
-        ]
+        [updateType, requestedTime, [priceId], [priceFeedUpdate as Address]]
       );
     } else {
       throw new Error(`update type ${updateType} not supported`);
