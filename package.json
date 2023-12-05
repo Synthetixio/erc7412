@@ -5,7 +5,7 @@
   "main": "dist/src/index.js",
   "scripts": {
     "build": "forge build && tsc",
-    "test": "node ./test/client.mjs"
+    "test": "node ./test/pyth.mjs"
   },
   "repository": {
     "type": "git",
