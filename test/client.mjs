@@ -1,14 +1,14 @@
-import eip7412, { DefaultAdapter } from "../dist/src/index.js";
-import http from "http";
-import * as viem from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import eip7412, { DefaultAdapter } from '../dist/src/index.js';
+import http from 'http';
+import * as viem from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
 import {
   build,
   runRpc,
   getProvider,
   getFoundryArtifact,
   ChainDefinition,
-} from "@usecannon/cli";
+} from '@usecannon/cli';
 
 async function generate7412CompatibleCall(
   client,
@@ -17,30 +17,32 @@ async function generate7412CompatibleCall(
   functionName
 ) {
   const adapters = [];
-  adapters.push(new DefaultAdapter("TEST", "http://localhost:8000"));
+  adapters.push(new DefaultAdapter('TEST', 'http://localhost:8000'));
 
   const converter = new eip7412.EIP7412(adapters, multicallFunc);
 
-  return await converter.enableERC7412(client, {
-    to: addressToCall,
-    data: functionName,
-  });
+  return await converter.enableERC7412(client, [
+    {
+      to: addressToCall,
+      data: functionName,
+    },
+  ]);
 }
 
 function startWebServer() {
   return new Promise((resolve) => {
     http
       .createServer((req, res) => {
-        let body = "";
-        req.on("data", (chunk) => {
+        let body = '';
+        req.on('data', (chunk) => {
           body += chunk;
         });
 
-        req.on("end", () => {
-          res.writeHead(200, { "Content-Type": "text/plain" });
+        req.on('end', () => {
+          res.writeHead(200, { 'Content-Type': 'text/plain' });
           res.end(
             viem.encodeAbiParameters(
-              [{ type: "string" }],
+              [{ type: 'string' }],
               [`Hello World ${viem.hexToNumber(body)}`]
             )
           );
@@ -57,17 +59,17 @@ async function makeTestEnv() {
 
   const info = await build({
     provider: getProvider(node),
-    packageDefinition: { name: "erc7412test", version: "0.0.1" },
+    packageDefinition: { name: 'erc7412test', version: '0.0.1' },
     getArtifact: getFoundryArtifact,
     def: new ChainDefinition({
-      name: "erc7412test",
-      version: "0.0.1",
+      name: 'erc7412test',
+      version: '0.0.1',
       contract: {
         Multicall: {
-          artifact: "Multicall3_1", // using "multicall3.1" because it bubbles up errors
+          artifact: 'Multicall3_1', // using "multicall3.1" because it bubbles up errors
         },
         OffchainGreeter: {
-          artifact: "OffchainGreeter",
+          artifact: 'OffchainGreeter',
         },
       },
     }),
@@ -77,19 +79,19 @@ async function makeTestEnv() {
 }
 
 makeTestEnv().then((netInfo) => {
-  const senderAddr = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+  const senderAddr = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
 
   const greeterAddress = netInfo.outputs.contracts.OffchainGreeter.address;
   const greeterFunc = viem.encodeFunctionData({
     abi: netInfo.outputs.contracts.OffchainGreeter.abi,
-    functionName: "greet",
+    functionName: 'greet',
     args: [3],
   });
 
   function makeMulticall(calls) {
     const ret = viem.encodeFunctionData({
       abi: netInfo.outputs.contracts.Multicall.abi,
-      functionName: "aggregate3Value",
+      functionName: 'aggregate3Value',
       args: [
         calls.map((call) => ({
           target: call.to,
@@ -115,11 +117,11 @@ makeTestEnv().then((netInfo) => {
 
   const walletConfig = {
     chain: {
-      nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+      nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
       id: 13370,
-      chainName: "Cannon Localhost",
-      rpcUrls: { default: { http: ["http://localhost:8545"] } },
-      blockExplorerUrls: ["http://localhost:8000"],
+      chainName: 'Cannon Localhost',
+      rpcUrls: { default: { http: ['http://localhost:8545'] } },
+      blockExplorerUrls: ['http://localhost:8000'],
     },
     transport: viem.custom({
       request: async (req) => {
@@ -132,7 +134,7 @@ makeTestEnv().then((netInfo) => {
   const client = viem.createPublicClient(walletConfig);
   const walletClient = viem.createWalletClient({
     account: privateKeyToAccount(
-      "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+      '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
     ),
     transport: walletConfig.transport,
     chain: walletConfig.chain,
@@ -144,7 +146,7 @@ makeTestEnv().then((netInfo) => {
     greeterAddress,
     greeterFunc
   ).then((tx) => {
-    console.log("Sending multicall transaction with oracle data");
+    console.log('Sending multicall transaction with oracle data');
     walletClient
       .sendTransaction({
         account: senderAddr,
@@ -153,14 +155,14 @@ makeTestEnv().then((netInfo) => {
         value: tx.value,
       })
       .then((hash) => {
-        console.log("Multicall transaction hash: " + hash);
+        console.log('Multicall transaction hash: ' + hash);
         client.waitForTransactionReceipt({ hash }).then(() => {
-          console.log("Multicall transaction mined");
+          console.log('Multicall transaction mined');
           client
             .readContract({
               address: greeterAddress,
               abi: netInfo.outputs.contracts.OffchainGreeter.abi,
-              functionName: "greet",
+              functionName: 'greet',
               args: [3],
             })
             .then((res) => {

@@ -103,11 +103,11 @@ async function generate7412CompatibleCall(client, multicallFunc, txn) {
   const adapters = [];
 
   // NOTE: add other providers here as needed
-  adapters.push(new PythAdapter('https://xc-mainnet.pyth.network/'));
+  adapters.push(new PythAdapter('https://hermes.pyth.network/'));
 
   const converter = new eip7412.EIP7412(adapters, multicallFunc);
 
-  return await converter.enableERC7412(client, txn);
+  return await converter.enableERC7412(client, [txn]);
 }
 
 export async function hookForReadCall(txn) {
@@ -227,7 +227,7 @@ export async function hookForWriteCall(txn) {
 
   const data = contract.interface.encodeFunctionData('getBenchmarkPrice', [
     '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
-    '1693485033',
+    '1705009034',
   ]);
 
   const call = await hookForReadCall({
