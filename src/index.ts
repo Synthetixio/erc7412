@@ -51,6 +51,7 @@ export class EIP7412 {
           abi: IERC7412.abi,
           data: parseError(error as viem.CallExecutionError),
         });
+
         if (err.errorName === 'OracleDataRequired') {
           const oracleQuery = err.args![1] as viem.Hex;
           const oracleAddress = err.args![0] as viem.Address;
