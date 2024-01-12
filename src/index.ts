@@ -30,9 +30,9 @@ export class EIP7412 {
 
   async enableERC7412(
     client: viem.PublicClient,
-    txs: TransactionRequest[]
+    tx: TransactionRequest | TransactionRequest[]
   ): Promise<TransactionRequest> {
-    let multicallCalls: TransactionRequest[] = txs;
+    const multicallCalls: TransactionRequest[] = Array.isArray(tx) ? tx : [tx];
 
     while (true) {
       try {
