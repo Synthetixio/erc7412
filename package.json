@@ -27,8 +27,9 @@
   "dependencies": {
     "@usecannon/cli": "^2.5.0",
     "node-fetch": "^2.6.12",
+    "permissionless": "^0.0.28",
     "typechain": "^8.3.1",
-    "viem": "^1.5.3"
+    "viem": "^2.3.1"
   },
   "peerDependencies": {
     "@pythnetwork/pyth-evm-js": "^1.25.0",
@@ -43,6 +44,7 @@
     "eslint-plugin-n": "^16.6.0",
     "eslint-plugin-promise": "^6.1.1",
     "ethers": "^5.7.2",
+    "prettier": "3.2.4",
     "typescript": "^5.3.3"
   }
 }

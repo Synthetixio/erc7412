@@ -14,7 +14,7 @@ async function generate7412CompatibleCall(
   client,
   multicallFunc,
   addressToCall,
-  functionName
+  functionName,
 ) {
   const adapters = [];
   adapters.push(new DefaultAdapter("TEST", "http://localhost:8000"));
@@ -41,8 +41,8 @@ function startWebServer() {
           res.end(
             viem.encodeAbiParameters(
               [{ type: "string" }],
-              [`Hello World ${viem.hexToNumber(body)}`]
-            )
+              [`Hello World ${viem.hexToNumber(body)}`],
+            ),
           );
         });
       })
@@ -132,7 +132,7 @@ makeTestEnv().then((netInfo) => {
   const client = viem.createPublicClient(walletConfig);
   const walletClient = viem.createWalletClient({
     account: privateKeyToAccount(
-      "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+      "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
     ),
     transport: walletConfig.transport,
     chain: walletConfig.chain,
@@ -142,7 +142,7 @@ makeTestEnv().then((netInfo) => {
     client,
     makeMulticall,
     greeterAddress,
-    greeterFunc
+    greeterFunc,
   ).then((tx) => {
     console.log("Sending multicall transaction with oracle data");
     walletClient

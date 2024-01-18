@@ -1,10 +1,10 @@
-import eip7412 from '../dist/src/index.js';
-import { PythAdapter } from '../dist/src/adapters/pyth.js';
+import eip7412 from "../dist/src/index.js";
+import { PythAdapter } from "../dist/src/adapters/pyth.js";
 
-import { Contract, ethers } from 'ethers';
+import { Contract, ethers } from "ethers";
 
-import * as viem from 'viem';
-import { baseGoerli } from 'viem/chains';
+import * as viem from "viem";
+import { baseGoerli } from "viem/chains";
 
 const Multicall3ABI = [
   {
@@ -12,53 +12,53 @@ const Multicall3ABI = [
       {
         components: [
           {
-            internalType: 'address',
-            name: 'target',
-            type: 'address',
+            internalType: "address",
+            name: "target",
+            type: "address",
           },
           {
-            internalType: 'bool',
-            name: 'allowFailure',
-            type: 'bool',
+            internalType: "bool",
+            name: "allowFailure",
+            type: "bool",
           },
           {
-            internalType: 'uint256',
-            name: 'value',
-            type: 'uint256',
+            internalType: "uint256",
+            name: "value",
+            type: "uint256",
           },
           {
-            internalType: 'bytes',
-            name: 'callData',
-            type: 'bytes',
+            internalType: "bytes",
+            name: "callData",
+            type: "bytes",
           },
         ],
-        internalType: 'struct Multicall3.Call3Value[]',
-        name: 'calls',
-        type: 'tuple[]',
+        internalType: "struct Multicall3.Call3Value[]",
+        name: "calls",
+        type: "tuple[]",
       },
     ],
-    name: 'aggregate3Value',
+    name: "aggregate3Value",
     outputs: [
       {
         components: [
           {
-            internalType: 'bool',
-            name: 'success',
-            type: 'bool',
+            internalType: "bool",
+            name: "success",
+            type: "bool",
           },
           {
-            internalType: 'bytes',
-            name: 'returnData',
-            type: 'bytes',
+            internalType: "bytes",
+            name: "returnData",
+            type: "bytes",
           },
         ],
-        internalType: 'struct Multicall3.Result[]',
-        name: 'returnData',
-        type: 'tuple[]',
+        internalType: "struct Multicall3.Result[]",
+        name: "returnData",
+        type: "tuple[]",
       },
     ],
-    stateMutability: 'payable',
-    type: 'function',
+    stateMutability: "payable",
+    type: "function",
   },
 ];
 
@@ -66,44 +66,44 @@ const MulticallThroughAbi = [
   {
     inputs: [
       {
-        internalType: 'address[]',
-        name: 'to',
-        type: 'address[]',
+        internalType: "address[]",
+        name: "to",
+        type: "address[]",
       },
       {
-        internalType: 'bytes[]',
-        name: 'data',
-        type: 'bytes[]',
+        internalType: "bytes[]",
+        name: "data",
+        type: "bytes[]",
       },
       {
-        internalType: 'uint256[]',
-        name: 'values',
-        type: 'uint256[]',
+        internalType: "uint256[]",
+        name: "values",
+        type: "uint256[]",
       },
     ],
-    name: 'multicallThrough',
+    name: "multicallThrough",
     outputs: [
       {
-        internalType: 'bytes[]',
-        name: 'results',
-        type: 'bytes[]',
+        internalType: "bytes[]",
+        name: "results",
+        type: "bytes[]",
       },
     ],
-    stateMutability: 'payable',
-    type: 'function',
+    stateMutability: "payable",
+    type: "function",
   },
 ];
 
 // make an ethers provider like we would have in the browser
 const provider = new ethers.providers.JsonRpcProvider(
-  'https://goerli.base.org'
+  "https://goerli.base.org",
 );
 
 async function generate7412CompatibleCall(client, multicallFunc, txn) {
   const adapters = [];
 
   // NOTE: add other providers here as needed
-  adapters.push(new PythAdapter('https://xc-mainnet.pyth.network/'));
+  adapters.push(new PythAdapter("https://xc-mainnet.pyth.network/"));
 
   const converter = new eip7412.EIP7412(adapters, multicallFunc);
 
@@ -121,11 +121,11 @@ export async function hookForReadCall(txn) {
     }),
   });
 
-  const multicall3Addr = '0xcbc8bDF9358BB3F5005B893a32b477e6B2F9f688';
+  const multicall3Addr = "0xcbc8bDF9358BB3F5005B893a32b477e6B2F9f688";
   const multicallFunc = function makeMulticall3Call(calls) {
     const ret = viem.encodeFunctionData({
       abi: Multicall3ABI,
-      functionName: 'aggregate3Value',
+      functionName: "aggregate3Value",
       args: [
         calls.map((call) => ({
           target: call.to,
@@ -165,7 +165,7 @@ export async function hookForWriteCall(txn) {
   const multicallFunc = function makeMulticallThroughCall(calls) {
     const ret = viem.encodeFunctionData({
       abi: MulticallThroughAbi,
-      functionName: 'multicallThrough',
+      functionName: "multicallThrough",
       args: [
         calls.map((c) => c.to),
         calls.map((c) => c.data),
@@ -198,40 +198,40 @@ export async function hookForWriteCall(txn) {
 
   // console.log(await provider.call(call));
 
-  const contract = new Contract('0xEa7a8f0fDD16Ccd46BA541Fb657a0A7FD7E36261', [
+  const contract = new Contract("0xEa7a8f0fDD16Ccd46BA541Fb657a0A7FD7E36261", [
     {
       inputs: [
         {
-          internalType: 'bytes32',
-          name: 'priceId',
-          type: 'bytes32',
+          internalType: "bytes32",
+          name: "priceId",
+          type: "bytes32",
         },
         {
-          internalType: 'uint64',
-          name: 'requestedTime',
-          type: 'uint64',
+          internalType: "uint64",
+          name: "requestedTime",
+          type: "uint64",
         },
       ],
-      name: 'getBenchmarkPrice',
+      name: "getBenchmarkPrice",
       outputs: [
         {
-          internalType: 'int256',
-          name: '',
-          type: 'int256',
+          internalType: "int256",
+          name: "",
+          type: "int256",
         },
       ],
-      stateMutability: 'view',
-      type: 'function',
+      stateMutability: "view",
+      type: "function",
     },
   ]);
 
-  const data = contract.interface.encodeFunctionData('getBenchmarkPrice', [
-    '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
-    '1693485033',
+  const data = contract.interface.encodeFunctionData("getBenchmarkPrice", [
+    "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
+    "1693485033",
   ]);
 
   const call = await hookForReadCall({
-    to: '0xEa7a8f0fDD16Ccd46BA541Fb657a0A7FD7E36261', // Pyth Wrapper contract address
+    to: "0xEa7a8f0fDD16Ccd46BA541Fb657a0A7FD7E36261", // Pyth Wrapper contract address
     data, // call to `getBenchMarkPrice` on the above contract. triggers a OracleDataRequired.
   });
   console.log(await provider.call(call));

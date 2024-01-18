@@ -12,8 +12,8 @@
     "resolveJsonModule": true,
     "rootDirs": ["./src"],
     "skipLibCheck": true,
-    "outDir": "./dist"
+    "outDir": "./dist",
   },
   "include": ["./src"],
-  "exclude": ["dist", "node_modules"]
+  "exclude": ["dist", "node_modules"],
 }
