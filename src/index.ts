@@ -2,7 +2,7 @@ import * as viem from "viem";
 import IERC7412 from "../out/IERC7412.sol/IERC7412.json";
 import { type OracleAdapter, type Batcher } from "./types";
 import { parseError } from "./parseError";
-
+import { SmartAccountClient as ISmartAccountClient } from "permissionless";
 export { DefaultAdapter, PythAdapter } from "./oracleAdapters/index";
 export {
   TrustedMulticallForwarderBatcher,
@@ -25,9 +25,21 @@ export class EIP7412 {
     this.batchers = batchers;
   }
 
+  async withOracleData(
+    client: viem.PublicClient | ISmartAccountClient,
+    transactions: TransactionRequest | TransactionRequest[],
+    returnBatch?: boolean
+  ): Promise<TransactionRequest | TransactionRequest[]> {
+    return await (this.enableERC7412(
+      client,
+      transactions,
+      !returnBatch
+    ) as Promise<TransactionRequest[]>);
+  }
+
   // Returns a list of transactions for submission to a paymaster or otherwise.
   async buildTransactions(
-    client: viem.PublicClient,
+    client: viem.PublicClient | ISmartAccountClient,
     transactions: TransactionRequest | TransactionRequest[]
   ): Promise<TransactionRequest[]> {
     return await (this.enableERC7412(client, transactions, true) as Promise<
@@ -37,7 +49,7 @@ export class EIP7412 {
 
   // Returns a multicall using the best method available for the provided transactions.
   async buildTransaction(
-    client: viem.PublicClient,
+    client: viem.PublicClient | ISmartAccountClient,
     transactions: TransactionRequest | TransactionRequest[]
   ): Promise<TransactionRequest> {
     return await (this.enableERC7412(
@@ -48,7 +60,7 @@ export class EIP7412 {
   }
 
   async batch(
-    client: viem.PublicClient,
+    client: viem.PublicClient | ISmartAccountClient,
     transactions: TransactionRequest[]
   ): Promise<TransactionRequest> {
     const batcher = this.batchers.find(
@@ -63,7 +75,7 @@ export class EIP7412 {
   }
 
   async enableERC7412(
-    client: viem.PublicClient,
+    client: viem.PublicClient | ISmartAccountClient,
     tx: TransactionRequest | TransactionRequest[],
     returnList?: boolean
   ): Promise<TransactionRequest | TransactionRequest[]> {
@@ -72,11 +84,24 @@ export class EIP7412 {
     while (true) {
       try {
         if (multicallCalls.length === 1) {
-          await client.call(multicallCalls[0]);
-          return multicallCalls[0];
+          if (client instanceof ISmartAccountClient) {
+            const gasEstimate = await client.estimateUserOperationGas({
+              transaction: multicallCalls[0],
+            });
+            return multicallCalls[0];
+          } else {
+            await client.call(multicallCalls[0]);
+            return multicallCalls[0];
+          }
         } else {
-          const multicallTxn = await this.batch(client, multicallCalls);
-          await client.call(multicallTxn);
+          if (client instanceof ISmartAccountClient) {
+            const gasEstimate = await client.estimateUserOperationGas({
+              transactions: multicallCalls,
+            });
+          } else {
+            const multicallTxn = await this.batch(client, multicallCalls);
+            await client.call(multicallTxn);
+          }
           return returnList ? multicallCalls : multicallTxn;
         }
       } catch (error) {
