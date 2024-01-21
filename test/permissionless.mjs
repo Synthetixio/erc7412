@@ -93,6 +93,10 @@ const erc7412 = new eip7412.EIP7412(adapters, batchers);
     data,
   };
 
+  // permissionless.js has logic for constructing the batchTransaction call, would be nice to avoid maintaining them seperately here
+  // https://github.com/pimlicolabs/permissionless.js/blob/main/packages/permissionless/accounts/biconomy/signerToBiconomySmartAccount.ts#L344
+  // smartAccountClient.encodeCallData([transactions])
+
   // pythOracleContract.interface should be able to tell us that getBenchmarkPrice is a view function
 
   // Mutable function, with ERC-4337
