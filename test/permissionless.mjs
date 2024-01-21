@@ -4,6 +4,7 @@ import * as viem from "viem";
 import eip7412 from "../dist/src/index.js";
 import { PythAdapter } from "../dist/src/oracles/pyth.js"; 
 import { TrustedMulticallForwarderBatcher } from "../dist/src/batchers/trustedmulticallforwarder.js"; 
+import { BiconomyBatcher } from "../dist/src/batchers/biconomy.js"; 
 import { baseSepolia } from "viem/chains";
 import { createSmartAccountClient } from "permissionless";
 import { createPimlicoPaymasterClient } from "permissionless/clients/pimlico";
@@ -43,8 +44,8 @@ const smartAccountClient = createSmartAccountClient({
 });
 
 // Initialize ERC-7412 Client Library
-const adapters = [new PythAdapter("https://xc-mainnet.pyth.network/")];
-const batchers = [new TrustedMulticallForwarderBatcher]; // TODO: Is biconomy batcher (or otherwise) needed if the bundler can take care of everything?
+const adapters = [new PythAdapter("https://hermes.pyth.network/")];
+const batchers = [new BiconomyBatcher, new TrustedMulticallForwarderBatcher];
 const erc7412 = new eip7412.EIP7412(adapters, batchers);
 
 // Query the price of $PEPE five seconds ago
@@ -95,7 +96,7 @@ const erc7412 = new eip7412.EIP7412(adapters, batchers);
   // pythOracleContract.interface should be able to tell us that getBenchmarkPrice is a view function
 
   // Mutable function, with ERC-4337
-  // const transactions = await erc7412.withOracleData(smartAccountClient, txn);
+  // const transactions = await erc7412.withOracleData(publicClient, txn);
   // await smartAccountClient.sendTransactions({ transactions });
 
   // Mutable function, with TMF
@@ -103,11 +104,16 @@ const erc7412 = new eip7412.EIP7412(adapters, batchers);
   // await privateClient.sendTransaction(transaction);
 
   // View function, with ERC-4337
-  // TODO, presumably this comes straight out of a function from erc7412 object?
+  // Looks like eth_estimateUserOperationGas doesn't return values, so we have to rely on the batchers to know how to generate the batchTransaction call based on the smart account implementation
+  // TODO, presumably this comes straight out of a function from erc7412 object? buildTransaction/buildTransaction could return info about the simulation result?
+  // These batch implementations don't return values, so we probably need to use Multicall3 for views: https://github.com/bcnmy/scw-contracts/blob/main/contracts/smart-account/SmartAccount.sol#L128
 
   // View function, with TMF
   // const transaction = await erc7412.buildTransaction(publicClient, txn);
-  // await publicClient.call(transaction); // I think this also needs to come from the erc7412 object, because we need to know how to parse out the response to the last call in the list, or at least provide the list?
+  // await publicClient.call(transaction); // I think this also needs to come from the erc7412 object, because the adapter knows out to parse out the response from the batch transaction function
 
   // TODO: For views, consider whether we have a "from" address from smartAccountClient and whether "from" is present on the transaction data. We sometimes prefer using the zero address for view calls, since it should have some gas tokens on it that will circumvent the FeeRequired error. This is probably an option, but opt-in or opt-out? Consider starting with from address and fallback to zero address if FeeRequired.
+
+  // So based on the above, I'm thinking there should just be a function for views which just puts the call together with Multicall3 from the zero address.
+  // Simulating the return value of a mutable function isn't use case that needs to supported.
 })();
