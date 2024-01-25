@@ -3,7 +3,10 @@ import IERC7412 from '../out/IERC7412.sol/IERC7412.json'
 import { type OracleAdapter, type Batcher } from './types'
 import { parseError } from './parseError'
 
-export { TrustedMulticallForwarderBatcher, BiconomyBatcher } from './batchers/index'
+export {
+  TrustedMulticallForwarderBatcher,
+  BiconomyBatcher
+} from './batchers/index'
 
 export type TransactionRequest = Pick<
 viem.TransactionRequest,
@@ -14,12 +17,9 @@ export class EIP7412 {
   oracleAdapters: Map<string, OracleAdapter>
   batchers: Batcher[]
 
-  constructor (
-    oracleAdapters: OracleAdapter[],
-    batchers: Batcher[]
-  ) {
+  constructor (oracleAdapters: OracleAdapter[], batchers: Batcher[]) {
     this.oracleAdapters = new Map(
-      oracleAdapters?.map(adapter => [adapter.getOracleId(), adapter])
+      oracleAdapters?.map((adapter) => [adapter.getOracleId(), adapter])
     )
     this.batchers = batchers
   }
@@ -29,7 +29,9 @@ export class EIP7412 {
     client: viem.PublicClient,
     transactions: TransactionRequest | TransactionRequest[]
   ): Promise<TransactionRequest[]> {
-    return await (this.enableERC7412(client, transactions, true) as Promise<TransactionRequest[]>) // I think I go to typescript jail for this
+    return await (this.enableERC7412(client, transactions, true) as Promise<
+    TransactionRequest[]
+    >) // I think I go to typescript jail for this
   }
 
   // Returns a multicall using the best method available for the provided transactions.
@@ -37,11 +39,20 @@ export class EIP7412 {
     client: viem.PublicClient,
     transactions: TransactionRequest | TransactionRequest[]
   ): Promise<TransactionRequest> {
-    return await (this.enableERC7412(client, transactions, false) as Promise<TransactionRequest>)
+    return await (this.enableERC7412(
+      client,
+      transactions,
+      false
+    ) as Promise<TransactionRequest>)
   }
 
-  async batch (client: viem.PublicClient, transactions: TransactionRequest[]): Promise<TransactionRequest> {
-    const batcher = this.batchers.find(async batch => await batch.batchable(client, transactions))
+  async batch (
+    client: viem.PublicClient,
+    transactions: TransactionRequest[]
+  ): Promise<TransactionRequest> {
+    const batcher = this.batchers.find(
+      async (batch) => await batch.batchable(client, transactions)
+    )
 
     if (!batcher) {
       throw new Error('No compatible batcher found for these transactions.')
@@ -103,18 +114,18 @@ export class EIP7412 {
             oracleQuery
           )
 
-          multicallCalls.splice(multicallCalls.length - 1, 0, {
-            from: multicallCalls[multicallCalls.length - 1].from,
+          const priceUpdateTx = {
             to: err.args![0] as viem.Address,
             data: viem.encodeFunctionData({
               abi: IERC7412.abi,
               functionName: 'fulfillOracleQuery',
               args: [signedRequiredData]
             })
-          })
+          }
+          multicallCalls.unshift(priceUpdateTx)
         } else if (err.errorName === 'FeeRequired') {
           const requiredFee = err.args![0] as bigint
-          multicallCalls[multicallCalls.length - 2].value = requiredFee
+          multicallCalls[0].value = requiredFee
         } else {
           throw error
         }
