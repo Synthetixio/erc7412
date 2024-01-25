@@ -76,7 +76,7 @@ export class EIP7412 {
         } else {
           const multicallTxn = await this.batch(client, multicallCalls)
           await client.call(multicallTxn)
-          return returnList ? multicallCalls : multicallTxn
+          return (returnList ?? false) ? multicallCalls : multicallTxn
         }
       } catch (error) {
         const err = viem.decodeErrorResult({
@@ -84,8 +84,8 @@ export class EIP7412 {
           data: parseError(error as viem.CallExecutionError)
         })
         if (err.errorName === 'OracleDataRequired') {
-          const oracleQuery = err.args![1] as viem.Hex
-          const oracleAddress = err.args![0] as viem.Address
+          const oracleQuery = err.args?.[1] as viem.Hex
+          const oracleAddress = err.args?.[0] as viem.Address
 
           const oracleId = viem.hexToString(
             viem.trim(
@@ -99,7 +99,7 @@ export class EIP7412 {
             )
           )
 
-          const adapter = this.oracleAdapters.get(oracleId)
+          const adapter = this.oracleAdapters.get(oracleId as string)
           if (adapter === undefined) {
             throw new Error(
               `oracle ${oracleId} not supported (supported oracles: ${Array.from(
@@ -115,16 +115,16 @@ export class EIP7412 {
           )
 
           const priceUpdateTx = {
-            to: err.args![0] as viem.Address,
+            to: err.args?.[0] as viem.Address,
             data: viem.encodeFunctionData({
               abi: IERC7412.abi,
               functionName: 'fulfillOracleQuery',
               args: [signedRequiredData]
             })
           }
-          multicallCalls.unshift(priceUpdateTx)
+          multicallCalls.unshift(priceUpdateTx as TransactionRequest)
         } else if (err.errorName === 'FeeRequired') {
-          const requiredFee = err.args![0] as bigint
+          const requiredFee = err.args?.[0] as bigint
           multicallCalls[0].value = requiredFee
         } else {
           throw error
