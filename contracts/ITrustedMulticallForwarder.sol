@@ -3,7 +3,7 @@
 pragma solidity 0.8.20;
 
 interface ITrustedMulticallForwarder {
-    struct Call3Value {
+    struct Call3 {
         address target;
         bool requireSuccess;
         uint256 value;
@@ -15,7 +15,7 @@ interface ITrustedMulticallForwarder {
         bytes returnData;
     }
 
-    function aggregate3Value(
-        Call3Value[] calldata calls
-    ) public payable returns (Result[] memory returnData);
+    function aggregate3(
+        Call3[] calldata calls
+    ) external payable returns (Result[] memory returnData);
 }

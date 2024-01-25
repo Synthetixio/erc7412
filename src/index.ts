@@ -3,7 +3,6 @@ import IERC7412 from '../out/IERC7412.sol/IERC7412.json'
 import { type OracleAdapter, type Batcher } from './types'
 import { parseError } from './parseError'
 
-export { DefaultAdapter, PythAdapter } from './oracleAdapters/index'
 export { TrustedMulticallForwarderBatcher, BiconomyBatcher } from './batchers/index'
 
 export type TransactionRequest = Pick<
