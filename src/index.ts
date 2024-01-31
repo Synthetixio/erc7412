@@ -47,10 +47,14 @@ export class EIP7412 {
           return multicallTxn;
         }
       } catch (error) {
-        const err = viem.decodeErrorResult({
-          abi: IERC7412.abi,
-          data: parseError(error as viem.CallExecutionError),
-        });
+        let err: any;
+
+        try {
+          err = viem.decodeErrorResult({
+            abi: IERC7412.abi,
+            data: parseError(error as viem.CallExecutionError),
+          });
+        } catch (decodeErr) {}
 
         if (err.errorName === 'OracleDataRequired') {
           const oracleQuery = err.args![1] as viem.Hex;
