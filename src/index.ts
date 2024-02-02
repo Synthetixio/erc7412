@@ -47,12 +47,16 @@ export class EIP7412 {
           return multicallTxn;
         }
       } catch (error) {
-        const err = viem.decodeErrorResult({
-          abi: IERC7412.abi,
-          data: parseError(error as viem.CallExecutionError),
-        });
+        let err: any;
 
-        if (err.errorName === 'OracleDataRequired') {
+        try {
+          err = viem.decodeErrorResult({
+            abi: IERC7412.abi,
+            data: parseError(error as viem.CallExecutionError),
+          });
+        } catch (decodeErr) {}
+
+        if (err?.errorName === 'OracleDataRequired') {
           const oracleQuery = err.args![1] as viem.Hex;
           const oracleAddress = err.args![0] as viem.Address;
 
@@ -92,7 +96,7 @@ export class EIP7412 {
             }),
           };
           multicallCalls.unshift(priceUpdateTx);
-        } else if (err.errorName === 'FeeRequired') {
+        } else if (err?.errorName === 'FeeRequired') {
           const requiredFee = err.args![0] as bigint;
           multicallCalls[0].value = requiredFee;
         } else {
