@@ -1,48 +1,48 @@
 {
-  "name": "erc7412",
-  "version": "0.2.2",
-  "description": "",
-  "main": "dist/src/index.js",
-  "scripts": {
-    "build": "forge build && tsc",
-    "test": "node ./test/pyth.mjs",
-    "lint:fix": "eslint . --ext .ts --fix"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Synthetixio/erc7412.git"
-  },
-  "files": [
-    "dist/**"
-  ],
-  "keywords": [
-    "ethereum"
-  ],
-  "author": "",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/Synthetixio/erc7412/issues"
-  },
-  "homepage": "https://github.com/Synthetixio/erc7412#readme",
-  "dependencies": {
-    "@usecannon/cli": "^2.5.0",
-    "node-fetch": "^2.6.12",
-    "typechain": "^8.3.1",
-    "viem": "^1.5.3"
-  },
-  "peerDependencies": {
-    "@pythnetwork/pyth-evm-js": "^1.25.0",
-    "@pythnetwork/pyth-sdk-solidity": "^2.2.1"
-  },
-  "devDependencies": {
-    "@types/node-fetch": "^2.6.4",
-    "@typescript-eslint/eslint-plugin": "^6.16.0",
-    "eslint": "^8.56.0",
-    "eslint-config-standard-with-typescript": "^43.0.0",
-    "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-n": "^16.6.0",
-    "eslint-plugin-promise": "^6.1.1",
-    "ethers": "^5.7.2",
-    "typescript": "^5.3.3"
-  }
+	"name": "erc7412",
+	"version": "0.2.2",
+	"description": "",
+	"main": "dist/src/index.js",
+	"scripts": {
+		"build": "forge build && tsc",
+		"test": "node ./test/pyth.mjs",
+		"lint:fix": "eslint . --ext .ts --fix"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Synthetixio/erc7412.git"
+	},
+	"files": [
+		"dist/**"
+	],
+	"keywords": [
+		"ethereum"
+	],
+	"author": "",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/Synthetixio/erc7412/issues"
+	},
+	"homepage": "https://github.com/Synthetixio/erc7412#readme",
+	"dependencies": {
+		"@usecannon/cli": "^2.5.0",
+		"node-fetch": "^2.6.12",
+		"typechain": "^8.3.1",
+		"viem": "2.7.3"
+	},
+	"peerDependencies": {
+		"@pythnetwork/pyth-evm-js": "^1.25.0",
+		"@pythnetwork/pyth-sdk-solidity": "^2.2.1"
+	},
+	"devDependencies": {
+		"@types/node-fetch": "^2.6.4",
+		"@typescript-eslint/eslint-plugin": "^6.16.0",
+		"eslint": "^8.56.0",
+		"eslint-config-standard-with-typescript": "^43.0.0",
+		"eslint-plugin-import": "^2.29.1",
+		"eslint-plugin-n": "^16.6.0",
+		"eslint-plugin-promise": "^6.1.1",
+		"ethers": "^5.7.2",
+		"typescript": "^5.3.3"
+	}
 }
