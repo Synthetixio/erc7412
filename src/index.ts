@@ -3,126 +3,11 @@ import IERC7412 from '../out/IERC7412.sol/IERC7412.json'
 import { type OracleAdapter } from './types'
 import { parseError } from './parseError'
 
-import {
-  prepareTransactionRequest as actionPrepareTransactionRequest,
-  estimateContractGas as actionEstimateContractGas,
-  simulateContract as actionSimulateContract
-} from 'viem/actions'
-
 import ITrustedMulticallForwarder from '../out/ITrustedMulticallForwarder.sol/ITrustedMulticallForwarder.json'
 
 const TRUSTED_MULTICALL_FORWARDER_ADDRESS: viem.Address = '0xE2C5658cC5C448B48141168f3e475dF8f65A1e3e'
 
 export type TransactionRequest = Pick<viem.TransactionRequest, 'to' | 'data' | 'value' | 'from'>
-
-/**
- * Extend your viem client with the object returned by this function to automatically apply erc7412
- * required offchain data to your read calls
- */
-export function createErc7412Actions(adapters: OracleAdapter[]) {
-  return (client: viem.PublicClient) => {
-    const actions = {
-      call: async (args: viem.CallParameters): Promise<viem.CallReturnType> => {
-        return {
-          data: (
-            await callWithOffchainData(
-              [
-                {
-                  from: (args.account as any)?.address ?? viem.zeroAddress,
-                  ...args
-                }
-              ],
-              client,
-              adapters
-            )
-          )[0]
-        }
-      },
-      readContract: async (args: viem.ReadContractParameters): Promise<viem.ReadContractReturnType> => {
-        return {
-          data: viem.decodeFunctionResult({
-            ...args,
-            data: (
-              await callWithOffchainData(
-                [
-                  {
-                    from: (args.account as any)?.address ?? viem.zeroAddress,
-                    data: viem.encodeFunctionData(args),
-                    ...args
-                  }
-                ],
-                client,
-                adapters
-              )
-            )[0]
-          })
-        }
-      },
-      prepareTransactionRequest: async (args: viem.PrepareTransactionRequestParameters) => {
-        try {
-          return await actionPrepareTransactionRequest(client, args)
-        } catch (err) {
-          console.log('WARN: erc7412 not implemented for prepareTransactionRequest')
-          throw err
-        }
-      },
-      estimateContractGas: async (args: viem.EstimateContractGasParameters) => {
-        try {
-          return await actionEstimateContractGas(client, args)
-        } catch (err) {
-          console.log('WARN: erc7412 not implemented for estimateContractGas')
-          throw err
-        }
-      },
-      // TODO: types
-      simulateContract: async (args: viem.SimulateContractParameters): Promise<any> => {
-        try {
-          return await actionSimulateContract(client, args)
-        } catch (err) {
-          const baseTxn = {
-            from: (args.account as any)?.address ?? viem.zeroAddress,
-            to: args.address,
-            chain: args.chain,
-            data: viem.encodeFunctionData(args),
-            value: args.value
-          }
-          return {
-            result: viem.decodeFunctionResult({
-              ...args,
-              data: (await callWithOffchainData([baseTxn], client, adapters))[0]
-            }) as any
-          }
-        }
-      },
-      multicall: async (args: viem.MulticallParameters): Promise<viem.MulticallReturnType> => {
-        if (args.contracts.length < 1) {
-          throw new Error('must have at least one call for multicall')
-        }
-
-        const retvals = await callWithOffchainData(
-          // todo: types have a problem with the fact it cannot verify that the array is at least 1 long
-          args.contracts.map((c) => {
-            return {
-              from: c.address ?? viem.zeroAddress,
-              data: viem.encodeFunctionData(c),
-              ...c
-            }
-          }) as any,
-          client,
-          adapters
-        )
-
-        return retvals.map((r, i) => {
-          return { result: viem.decodeFunctionResult({ ...args.contracts[i], data: r }), status: 'success' }
-        })
-      }
-      // below functions are not included because they are not applicable
-      // writeContract: async (args: viem.WriteContractParameters) => {},
-    }
-
-    return actions
-  }
-}
 
 export function makeTrustedForwarderMulticall(transactions: TransactionRequest[]): TransactionRequest {
   const totalValue = transactions.reduce((val, txn) => {
@@ -150,9 +35,11 @@ export function makeTrustedForwarderMulticall(transactions: TransactionRequest[]
 
 export async function callWithOffchainData(
   transactions: [TransactionRequest, ...TransactionRequest[]],
-  client: viem.PublicClient,
+  provider: Parameters<typeof viem.custom>[0],
   adapters: OracleAdapter[]
 ): Promise<[viem.Hex, ...viem.Hex[]]> {
+  const client = viem.createPublicClient({ transport: viem.custom(provider, { retryCount: 0 }) })
+
   const prependedTxns: TransactionRequest[] = []
   while (true) {
     try {
@@ -165,11 +52,12 @@ export async function callWithOffchainData(
 
       const datas: any[] = viem.decodeFunctionResult({
         abi: ITrustedMulticallForwarder.abi,
-        functionName: 'multicall3',
+        functionName: 'aggregate3Value',
         data: result.data
       }) as any[]
-      return datas.slice(-transactions.length)[0]
+      return datas.slice(-transactions.length) as any
     } catch (caughtErr) {
+      console.log('an error occured', caughtErr)
       prependedTxns.push(await resolvePrependTransaction(caughtErr, client, adapters))
     }
   }
@@ -177,9 +65,11 @@ export async function callWithOffchainData(
 
 export async function resolvePrependTransaction(
   origError: any,
-  client: viem.PublicClient,
+  provider: Parameters<typeof viem.custom>[0],
   adapters: OracleAdapter[]
 ): Promise<TransactionRequest> {
+  const client = viem.createPublicClient({ transport: viem.custom(provider, { retryCount: 0 }) })
+
   try {
     const err = viem.decodeErrorResult({
       abi: IERC7412.abi,
@@ -201,6 +91,8 @@ export async function resolvePrependTransaction(
         )
       )
 
+      console.log('READ OID', oracleId)
+
       const adapter = adapters.find((a) => a.getOracleId() === oracleId)
       if (adapter === undefined) {
         throw new Error(
@@ -210,7 +102,9 @@ export async function resolvePrependTransaction(
         )
       }
 
-      const offchainData = adapter.fetchOffchainData(client, oracleAddress, oracleQuery)
+      console.log('found the oracle')
+
+      const offchainData = await adapter.fetchOffchainData(client, oracleAddress, oracleQuery)
 
       const priceUpdateTx: TransactionRequest = {
         from: viem.zeroAddress,
