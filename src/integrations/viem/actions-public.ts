@@ -1,10 +1,8 @@
 import * as viem from 'viem'
 
-import {
-  prepareTransactionRequest as actionPrepareTransactionRequest,
-  estimateContractGas as actionEstimateContractGas,
-  simulateContract as actionSimulateContract
-} from 'viem/actions'
+import { estimateContractGas as actionEstimateContractGas } from 'viem/actions'
+
+import { createErc7412WalletActions } from './actions-wallet'
 
 import { callWithOffchainData } from '../..'
 import type { OracleAdapter } from '../../types'
@@ -13,7 +11,8 @@ import type { OracleAdapter } from '../../types'
  * Extend your viem client with the object returned by this function to automatically apply erc7412
  * required offchain data to your read calls
  */
-export function createErc7412PublicActions (adapters: OracleAdapter[]) {
+export function createErc7412PublicActions(adapters: OracleAdapter[]) {
+  const actionsWallet = createErc7412WalletActions(adapters)
   return (client: viem.PublicClient) => {
     const actions = {
       call: async (args: viem.CallParameters): Promise<viem.CallReturnType> => {
@@ -53,12 +52,7 @@ export function createErc7412PublicActions (adapters: OracleAdapter[]) {
         }
       },
       prepareTransactionRequest: async (args: viem.PrepareTransactionRequestParameters) => {
-        try {
-          return await actionPrepareTransactionRequest(client, args)
-        } catch (err) {
-          console.log('WARN: erc7412 not implemented for prepareTransactionRequest')
-          throw err
-        }
+        return await actionsWallet(client).prepareTransactionRequest(args)
       },
       estimateContractGas: async (args: viem.EstimateContractGasParameters) => {
         try {
@@ -69,25 +63,7 @@ export function createErc7412PublicActions (adapters: OracleAdapter[]) {
         }
       },
       // TODO: types
-      simulateContract: async (args: viem.SimulateContractParameters): Promise<any> => {
-        try {
-          return await actionSimulateContract(client, args)
-        } catch (err) {
-          const baseTxn = {
-            from: (args.account as any)?.address ?? viem.zeroAddress,
-            to: args.address,
-            chain: args.chain,
-            data: viem.encodeFunctionData(args),
-            value: args.value
-          }
-          return {
-            result: viem.decodeFunctionResult({
-              ...args,
-              data: (await callWithOffchainData([baseTxn], client, adapters))[0]
-            }) as any
-          }
-        }
-      },
+      simulateContract: async (args: viem.SimulateContractParameters): Promise<any> => {},
       multicall: async (args: viem.MulticallParameters): Promise<viem.MulticallReturnType> => {
         if (args.contracts.length < 1) {
           throw new Error('must have at least one call for multicall')

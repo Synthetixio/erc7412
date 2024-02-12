@@ -8,6 +8,8 @@ export const fakeWeb3 = {
   request: jest.fn()
 }
 
+const fakeAddress = viem.getContractAddress({ from: viem.zeroAddress, nonce: 0n })
+
 export const fakeAdapters = [
   {
     getOracleId: () => 'FAKE',
@@ -18,7 +20,6 @@ export const fakeAdapters = [
 describe('index.ts', () => {
   beforeEach(() => {
     fakeWeb3.request.mockImplementation(async ({ method, params }: { method: string; params: any[] }) => {
-      //console.log('got call', method, params)
       if (method === 'eth_call') {
         if (params[0].data === viem.encodeFunctionData({ abi: IERC7412.abi, functionName: 'oracleId' })) {
           // getOracleId call
@@ -93,22 +94,33 @@ describe('index.ts', () => {
     })
 
     it('fetches offchain data without fee', async () => {
-      const origError = { data: viem.encodeErrorResult({ abi: IERC7412.abi, errorName: 'OracleDataRequired', args: [] }) }
-      fakeWeb3.request.mockResolvedValue('0x')
-      expect(await mod.resolvePrependTransaction(origError, fakeWeb3, fakeAdapters)).toEqual(
-        viem.encodeFunctionData({ abi: IERC7412.abi, functionName: 'fulfillOracleQuery', args: ['0x12345678'] })
+      const origError = {
+        data: viem.encodeErrorResult({
+          abi: IERC7412.abi,
+          errorName: 'OracleDataRequired',
+          args: [fakeAddress, '0x1234']
+        })
+      }
+      fakeWeb3.request.mockResolvedValue(viem.stringToHex('FAKE', { size: 32 }))
+      const result = await mod.resolvePrependTransaction(origError, fakeWeb3, fakeAdapters)
+      expect(result.data).toEqual(
+        viem.encodeFunctionData({ abi: IERC7412.abi, functionName: 'fulfillOracleQuery', args: ['0x87651234'] })
       )
     })
 
-    it('fetches offchain data without fee', async () => {
-      const origError = { data: viem.encodeErrorResult({ abi: IERC7412.abi, errorName: 'OracleDataRequired', args: [] }) }
+    it('fetches offchain data with fee', async () => {
+      const origError = {
+        data: viem.encodeErrorResult({ abi: IERC7412.abi, errorName: 'OracleDataRequired', args: [fakeAddress, '0x1234'] })
+      }
       fakeWeb3.request.mockRejectedValue({
-        data: viem.encodeErrorResult({ abi: IERC7412.abi, errorName: 'FeeRequired', args: [100n] })
+        data: viem.encodeErrorResult({ abi: IERC7412.abi, errorName: 'FeeRequired', args: [100] })
       })
-      expect(await mod.resolvePrependTransaction(origError, fakeWeb3, fakeAdapters)).toMatchObject({
-        data: viem.encodeFunctionData({ abi: IERC7412.abi, functionName: 'fulfillOracleQuery', args: ['0x12345678'] }),
-        value: 100n
-      })
+      fakeWeb3.request.mockResolvedValueOnce(viem.stringToHex('FAKE', { size: 32 }))
+      const result = await mod.resolvePrependTransaction(origError, fakeWeb3, fakeAdapters)
+      expect(result.data).toEqual(
+        viem.encodeFunctionData({ abi: IERC7412.abi, functionName: 'fulfillOracleQuery', args: ['0x87651234'] })
+      )
+      expect(Number(result.value)).toEqual(100)
     })
   })
 })
