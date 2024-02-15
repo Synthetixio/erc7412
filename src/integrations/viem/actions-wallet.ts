@@ -8,12 +8,13 @@ import ITrustedMulticallForwarder from '../../../out/ITrustedMulticallForwarder.
 
 import type { TransactionRequest } from '../..'
 import type { OracleAdapter } from '../../types'
+import { getAccount } from './actions-public'
 
 /**
  * Extend your viem client with the object returned by this function to automatically apply erc7412
  * required offchain data to your read calls
  */
-export function createErc7412WalletActions(adapters: OracleAdapter[]) {
+export function createErc7412WalletActions (adapters: OracleAdapter[]) {
   return (client: viem.PublicClient) => {
     const actions = {
       prepareTransactionRequest: async (
@@ -34,7 +35,7 @@ export function createErc7412WalletActions(adapters: OracleAdapter[]) {
         const payloadTxns: TransactionRequest[] = args.txns.map((t) => {
           const req: TransactionRequest = {
             ...t,
-            from: typeof t.account === 'string' ? t.account : t.account?.address ?? viem.zeroAddress
+            from: getAccount(t.account)
           }
 
           return req
