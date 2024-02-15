@@ -1,6 +1,6 @@
 import * as viem from 'viem'
 
-export function parseError(error: any): viem.Hex {
+export function parseError (error: any): viem.Hex {
   try {
     if (viem.isHex(error.data)) {
       return error.data
@@ -12,9 +12,9 @@ export function parseError(error: any): viem.Hex {
       return parseError(error.cause)
     }
   } catch (err) {
-    //console.error('exception in erc7412 error parser:', err)
+    // console.error('exception in erc7412 error parser:', err)
   }
   // rethrow the error (and log it so we can see the original)
-  //console.error('got unknown error in erc7412 parse', error)
+  // console.error('got unknown error in erc7412 parse', error)
   throw error
 }

@@ -4,6 +4,7 @@ import { type OracleAdapter } from './types'
 import { parseError } from './parseError'
 
 import ITrustedMulticallForwarder from '../out/ITrustedMulticallForwarder.sol/ITrustedMulticallForwarder.json'
+import { getWETHAddress } from './constants'
 
 const TRUSTED_MULTICALL_FORWARDER_ADDRESS: viem.Address = '0xE2C5658cC5C448B48141168f3e475dF8f65A1e3e'
 
@@ -107,7 +108,7 @@ export async function resolvePrependTransaction(
       const offchainData = await adapter.fetchOffchainData(client, oracleAddress, oracleQuery)
 
       const priceUpdateTx: TransactionRequest = {
-        from: viem.zeroAddress,
+        from: getWETHAddress(await client.getChainId()),
         to: err.args?.[0] as viem.Address,
         data: viem.encodeFunctionData({
           abi: IERC7412.abi,
