@@ -14,6 +14,20 @@ interface IERC7412 {
 	error OracleDataRequired(address oracleContract, bytes oracleQuery);
 
 	/**
+	 * @dev Similar to the above `OracleDataRequired` event, but additionally supplies the fee that will be required to complete the update.
+	 * @param oracleContract The address of the oracle contract (which is also the fulfillment contract).
+	 * @param oracleQuery The query to be sent to the off-chain interface.
+	 * @param feeRequired The amount of ETH that should be sent to the oracleContract on the fullfill call.
+	 */
+	error OracleDataRequired(address oracleContract, bytes oracleQuery, uint256 feeRequired);
+
+    /**
+     * @dev `OracleDataRequired` events may be batched into a single error object to prevent repeated simulation calls.
+	 * @param revertReasons Any errors encountered during execution, possibly including `OracleDataRequired`
+     */
+    error Errors(bytes[] revertReasons);
+
+	/**
 	 * @dev Emitted when the recently posted oracle data requires a fee to be paid. Upon receipt of this error,
 	 * a wallet client should attach the requested feeAmount to the most recently posted oracle data transaction
 	 */
