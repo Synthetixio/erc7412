@@ -7,11 +7,20 @@ pragma solidity ^0.8.0;
 interface IERC7412 {
 	/**
 	 * @dev Emitted when an oracle is requested to provide data. Upon receipt of this error, a wallet client
-	 * should automatically resolve the requested oracle data and call fulfillOracleQuery.
+	 * should automatically resolve the requested oracle data and call fulfillOracleQuery. In the same call, it should also send the amount of ETH required by `feeRequired`
+	 * @notice Legacy versions of this event may also exist and not include the `feeRequired` event. These events should also be handled fo rthe time being
 	 * @param oracleContract The address of the oracle contract (which is also the fulfillment contract).
 	 * @param oracleQuery The query to be sent to the off-chain interface.
 	 */
-	error OracleDataRequired(address oracleContract, bytes oracleQuery);
+	error OracleDataRequired(address oracleContract, bytes oracleQuery, uint256 feeRequired);
+
+	/**
+	 * @dev Emitted when there is more than one error during execution, and they have been bundled to
+	 * a single response for performance reasons.
+	 * @notice Recursion may be necessary to parse nested Errors objects
+	 * @param errors a sequence of errors that were gathered
+	 */
+	error Errors(bytes[] errors);
 
 	/**
 	 * @dev Emitted when the recently posted oracle data requires a fee to be paid. Upon receipt of this error,

@@ -12,13 +12,13 @@ export class DefaultAdapter implements OracleAdapter {
   async fetchOffchainData(
     _client: viem.Client,
     _oracleContract: viem.Address,
-    oracleQuery: Array<{ query: viem.Hex; fee: bigint }>
+    oracleQuery: Array<{ query: viem.Hex; fee?: bigint }>
   ): Promise<Array<{ arg: viem.Hex; fee: bigint }>> {
     if (oracleQuery.length > 1) {
       throw new Error('only one query at a time is supported')
     }
 
-    return [{ arg: await this.fetch(oracleQuery[0].query), fee: BigInt(0) }]
+    return [{ arg: await this.fetch(oracleQuery[0].query), fee: oracleQuery[0].fee ?? BigInt(0) }]
   }
 
   private async fetch(data: viem.Hex): Promise<viem.Hex> {

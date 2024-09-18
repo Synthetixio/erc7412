@@ -8,6 +8,10 @@ import { getWETHAddress } from './constants'
 
 const TRUSTED_MULTICALL_FORWARDER_ADDRESS: viem.Address = '0xE2C5658cC5C448B48141168f3e475dF8f65A1e3e'
 
+export const LEGACY_ODR_ERROR = [
+  { type: 'error', name: 'OracleDataRequired', inputs: [{ type: 'address' }, { type: 'bytes' }] }
+]
+
 export type TransactionRequest = Pick<viem.TransactionRequest, 'to' | 'data' | 'value' | 'from'>
 
 export function makeTrustedForwarderMulticall(transactions: TransactionRequest[]): TransactionRequest {
@@ -37,31 +41,35 @@ export function makeTrustedForwarderMulticall(transactions: TransactionRequest[]
 export async function callWithOffchainData(
   transactions: [TransactionRequest, ...TransactionRequest[]],
   provider: Parameters<typeof viem.custom>[0],
-  adapters: OracleAdapter[]
+  adapters: OracleAdapter[],
+  maxIter = 5
 ): Promise<[viem.Hex, ...viem.Hex[]]> {
   const client = viem.createPublicClient({ transport: viem.custom(provider, { retryCount: 0 }) })
 
   const prependedTxns: TransactionRequest[] = []
-  while (true) {
+  for (let i = 0; i < maxIter; i++) {
+    let result
     try {
-      const result = await client.call(
-        makeTrustedForwarderMulticall([...prependedTxns, ...transactions] as TransactionRequest[])
-      )
-      if (result.data === undefined) {
-        throw new Error('missing return data')
-      }
-
-      const datas: any[] = viem.decodeFunctionResult({
-        abi: ITrustedMulticallForwarder.abi,
-        functionName: 'aggregate3Value',
-        data: result.data
-      }) as any[]
-      return datas.slice(-transactions.length) as any
+      result = await client.call(makeTrustedForwarderMulticall([...prependedTxns, ...transactions] as TransactionRequest[]))
     } catch (caughtErr) {
       console.error('an error occured', caughtErr)
       prependedTxns.push(...(await resolvePrependTransaction(caughtErr, client, adapters)))
+      continue
     }
+    console.log('got result', result)
+    if (result.data === undefined) {
+      throw new Error('missing return data from multicall')
+    }
+
+    const datas: any[] = viem.decodeFunctionResult({
+      abi: ITrustedMulticallForwarder.abi,
+      functionName: 'aggregate3Value',
+      data: result.data
+    }) as any[]
+    return datas.slice(-transactions.length) as any
   }
+
+  throw new Error('erc7412 callback repeat exceeded')
 }
 
 export function resolveAdapterCalls(
@@ -69,10 +77,18 @@ export function resolveAdapterCalls(
   provider: Parameters<typeof viem.custom>[0]
 ): Record<viem.Address, Array<{ query: viem.Hex; fee: bigint }>> {
   try {
-    const err = viem.decodeErrorResult({
-      abi: IERC7412.abi,
-      data: parseError(origError as viem.CallExecutionError)
-    })
+    let err
+    try {
+      err = viem.decodeErrorResult({
+        abi: IERC7412.abi,
+        data: parseError(origError as viem.CallExecutionError)
+      })
+    } catch {
+      err = viem.decodeErrorResult({
+        abi: LEGACY_ODR_ERROR,
+        data: parseError(origError as viem.CallExecutionError)
+      })
+    }
     if (err.errorName === 'Errors') {
       const errorsList = err.args?.[0] as viem.Hex[]
 
@@ -81,7 +97,7 @@ export function resolveAdapterCalls(
         const subAdapterCalls = resolveAdapterCalls(error, provider)
 
         for (const a in subAdapterCalls) {
-          if (adapterCalls[a as viem.Address] !== undefined) {
+          if (adapterCalls[a as viem.Address] === undefined) {
             adapterCalls[a as viem.Address] = []
           }
 
@@ -102,7 +118,7 @@ export function resolveAdapterCalls(
   }
 
   // if we get to this point then we cant parse the error so we should make sure to send the original
-  throw origError
+  throw new Error(`could not parse error. can it be decoded elsewhere? ${JSON.stringify(origError)}`)
 }
 
 export async function resolvePrependTransaction(
