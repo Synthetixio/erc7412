@@ -4,16 +4,18 @@ import * as viem from 'viem'
 
 import IERC7412 from '../out/IERC7412.sol/IERC7412.json'
 
+import type { OracleAdapter } from './types'
+
 export const fakeWeb3 = {
   request: jest.fn()
 }
 
 const fakeAddress = viem.getContractAddress({ from: viem.zeroAddress, nonce: 0n })
 
-export const fakeAdapters = [
+export const fakeAdapters: OracleAdapter[] = [
   {
     getOracleId: () => 'FAKE',
-    fetchOffchainData: async () => '0x87651234' as viem.Hex
+    fetchOffchainData: async () => [{ arg: '0x87651234' as viem.Hex, fee: BigInt(100) }]
   }
 ]
 
@@ -103,7 +105,7 @@ describe('index.ts', () => {
       }
       fakeWeb3.request.mockResolvedValue(viem.stringToHex('FAKE', { size: 32 }))
       const result = await mod.resolvePrependTransaction(origError, fakeWeb3, fakeAdapters)
-      expect(result.data).toEqual(
+      expect(result[0].data).toEqual(
         viem.encodeFunctionData({ abi: IERC7412.abi, functionName: 'fulfillOracleQuery', args: ['0x87651234'] })
       )
     })
@@ -117,10 +119,10 @@ describe('index.ts', () => {
       })
       fakeWeb3.request.mockResolvedValueOnce(viem.stringToHex('FAKE', { size: 32 }))
       const result = await mod.resolvePrependTransaction(origError, fakeWeb3, fakeAdapters)
-      expect(result.data).toEqual(
+      expect(result[0].data).toEqual(
         viem.encodeFunctionData({ abi: IERC7412.abi, functionName: 'fulfillOracleQuery', args: ['0x87651234'] })
       )
-      expect(Number(result.value)).toEqual(100)
+      expect(Number(result[0].value)).toEqual(100)
     })
   })
 })

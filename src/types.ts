@@ -8,8 +8,7 @@ export interface OracleAdapter {
     client: viem.Client,
     oracleContract: viem.Address,
     oracleQuery: Array<{ query: viem.Hex; fee: bigint }>
-  ) => Promise<Array<{ arg: viem.Hex; fee: bigint }>>
-  getDefaultFee?: (oracleContract: viem.Address, oracleQuery: viem.Hex) => bigint
+  ) => Promise<Array<{ arg: viem.Hex; fee?: bigint }>>
 }
 
 export interface Batcher {

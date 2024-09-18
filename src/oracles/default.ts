@@ -3,21 +3,25 @@ import type * as viem from 'viem'
 import fetch from 'node-fetch'
 
 export class DefaultAdapter implements OracleAdapter {
-  constructor (private readonly oracleId: string, private readonly url: string) {}
+  constructor(private readonly oracleId: string, private readonly url: string) {}
 
-  getOracleId (): string {
+  getOracleId(): string {
     return this.oracleId
   }
 
-  async fetchOffchainData (
+  async fetchOffchainData(
     _client: viem.Client,
     _oracleContract: viem.Address,
-    oracleQuery: viem.Hex
-  ): Promise<viem.Hex> {
-    return await this.fetch(oracleQuery)
+    oracleQuery: Array<{ query: viem.Hex; fee: bigint }>
+  ): Promise<Array<{ arg: viem.Hex; fee: bigint }>> {
+    if (oracleQuery.length > 1) {
+      throw new Error('only one query at a time is supported')
+    }
+
+    return [{ arg: await this.fetch(oracleQuery[0].query), fee: BigInt(0) }]
   }
 
-  private async fetch (data: viem.Hex): Promise<viem.Hex> {
+  private async fetch(data: viem.Hex): Promise<viem.Hex> {
     const response = await fetch(this.url, {
       method: 'POST',
       headers: {
@@ -26,9 +30,7 @@ export class DefaultAdapter implements OracleAdapter {
       body: data
     })
     if (response.status !== 200) {
-      throw new Error(
-        `error fetching data (${response.status}): ${await response.text()}`
-      )
+      throw new Error(`error fetching data (${response.status}): ${await response.text()}`)
     }
     return (await response.text()) as viem.Hex
   }

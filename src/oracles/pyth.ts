@@ -14,9 +14,9 @@ export class PythAdapter implements OracleAdapter {
   }
 
   async fetchOffchainData(
-    client: viem.Client,
-    oracleContract: viem.Address,
-    oracleQuery: Array<{ query: viem.Hex; fee: bigint }>
+    _client: viem.Client,
+    _oracleContract: viem.Address,
+    oracleQuery: Array<{ query: viem.Hex; fee?: bigint }>
   ): Promise<Array<{ arg: viem.Hex; fee: bigint }>> {
     // divide by update type
     const stalePriceIds: viem.Hash[] = []
@@ -36,9 +36,9 @@ export class PythAdapter implements OracleAdapter {
         )
         stalePriceIds.push(...priceIds)
         stalenessTolerance = stalenessOrTime < stalenessTolerance ? stalenessOrTime : stalenessTolerance
-        staleUpdateFee
+        staleUpdateFee = staleUpdateFee + (query.fee ?? BigInt(1))
       } else if (updateType === 2) {
-        const [updateType, requestedTime, priceId] = viem.decodeAbiParameters(
+        const [, requestedTime, priceId] = viem.decodeAbiParameters(
           [
             { name: 'updateType', type: 'uint8' },
             { name: 'requestedTime', type: 'uint64' },
@@ -64,7 +64,7 @@ export class PythAdapter implements OracleAdapter {
             ],
             [2, requestedTime, [priceId], [priceFeedUpdate as Address]]
           ),
-          fee: query.fee
+          fee: query.fee ?? BigInt(1)
         })
       } else {
         throw new Error(`update type ${updateType} not supported`)

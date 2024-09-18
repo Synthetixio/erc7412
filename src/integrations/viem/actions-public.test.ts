@@ -1,5 +1,6 @@
 import * as viem from 'viem'
 import type { PublicClient } from 'viem'
+import type { OracleAdapter } from '../../types'
 
 import { createErc7412PublicActions } from './actions-public'
 
@@ -9,10 +10,10 @@ jest.mock('../..')
 
 const fakeAddress = viem.getContractAddress({ from: viem.zeroAddress, nonce: 0n })
 
-export const fakeAdapters = [
+export const fakeAdapters: OracleAdapter[] = [
   {
     getOracleId: () => 'FAKE',
-    fetchOffchainData: async () => '0x87651234' as viem.Hex
+    fetchOffchainData: async () => [{ arg: '0x87651234' as viem.Hex, fee: BigInt(100) }]
   }
 ]
 
