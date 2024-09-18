@@ -58,79 +58,44 @@ export async function callWithOffchainData(
       }) as any[]
       return datas.slice(-transactions.length) as any
     } catch (caughtErr) {
-      console.log('an error occured', caughtErr)
-      prependedTxns.push(await resolvePrependTransaction(caughtErr, client, adapters))
+      console.error('an error occured', caughtErr)
+      prependedTxns.push(...(await resolvePrependTransaction(caughtErr, client, adapters)))
     }
   }
 }
 
-export async function resolvePrependTransaction(
+export function resolveAdapterCalls(
   origError: any,
-  provider: Parameters<typeof viem.custom>[0],
-  adapters: OracleAdapter[]
-): Promise<TransactionRequest> {
-  const client = viem.createPublicClient({ transport: viem.custom(provider, { retryCount: 0 }) })
-
+  provider: Parameters<typeof viem.custom>[0]
+): Record<viem.Address, Array<{ query: viem.Hex; fee: bigint }>> {
   try {
     const err = viem.decodeErrorResult({
       abi: IERC7412.abi,
       data: parseError(origError as viem.CallExecutionError)
     })
-    if (err.errorName === 'OracleDataRequired') {
-      const oracleQuery = err.args?.[1] as viem.Hex
-      const oracleAddress = err.args?.[0] as viem.Address
+    if (err.errorName === 'Errors') {
+      const errorsList = err.args?.[0] as viem.Hex[]
 
-      const oracleId = viem.hexToString(
-        viem.trim(
-          (await client.readContract({
-            abi: IERC7412.abi,
-            address: oracleAddress,
-            functionName: 'oracleId',
-            args: []
-          })) as viem.Hex,
-          { dir: 'right' }
-        )
-      )
+      const adapterCalls: Record<viem.Address, Array<{ query: viem.Hex; fee: bigint }>> = {}
+      for (const error of errorsList) {
+        const subAdapterCalls = resolveAdapterCalls(error, provider)
 
-      console.log('READ OID', oracleId)
+        for (const a in subAdapterCalls) {
+          if (adapterCalls[a as viem.Address] !== undefined) {
+            adapterCalls[a as viem.Address] = []
+          }
 
-      const adapter = adapters.find((a) => a.getOracleId() === oracleId)
-      if (adapter === undefined) {
-        throw new Error(
-          `oracle ${oracleId} not supported (supported oracles: ${Array.from(adapters.map((a) => a.getOracleId())).join(
-            ','
-          )})`
-        )
-      }
-
-      console.log('found the oracle')
-
-      const offchainData = await adapter.fetchOffchainData(client, oracleAddress, oracleQuery)
-
-      const priceUpdateTx: TransactionRequest = {
-        from: getWETHAddress(await client.getChainId()),
-        to: err.args?.[0] as viem.Address,
-        data: viem.encodeFunctionData({
-          abi: IERC7412.abi,
-          functionName: 'fulfillOracleQuery',
-          args: [offchainData]
-        })
-      }
-
-      // find out if we have to pay a fee to submit this data
-      try {
-        await client.call(priceUpdateTx)
-      } catch (priceUpdateErr: any) {
-        const priceUpdateErrInfo = viem.decodeErrorResult({
-          abi: IERC7412.abi,
-          data: parseError(priceUpdateErr as viem.CallExecutionError)
-        })
-        if (priceUpdateErrInfo.errorName === 'FeeRequired' && priceUpdateErrInfo.args !== undefined) {
-          priceUpdateTx.value = priceUpdateErrInfo.args[0] as bigint
+          adapterCalls[a as viem.Address].push(...subAdapterCalls[a as viem.Address])
         }
       }
 
-      return priceUpdateTx
+      return adapterCalls
+    } else if (err.errorName === 'OracleDataRequired') {
+      const oracleQuery = err.args?.[1] as viem.Hex
+      const oracleAddress = err.args?.[0] as viem.Address
+      const fee = err.args?.[2] as bigint
+
+      return { [oracleAddress]: [{ query: oracleQuery, fee }] }
     }
   } catch (err) {
     console.log('had unexpected failure', err)
@@ -138,4 +103,52 @@ export async function resolvePrependTransaction(
 
   // if we get to this point then we cant parse the error so we should make sure to send the original
   throw origError
+}
+
+export async function resolvePrependTransaction(
+  origError: any,
+  provider: Parameters<typeof viem.custom>[0],
+  adapters: OracleAdapter[]
+): Promise<TransactionRequest[]> {
+  const client = viem.createPublicClient({ transport: viem.custom(provider, { retryCount: 0 }) })
+  const adapterCalls = resolveAdapterCalls(origError, provider)
+
+  const priceUpdateTxs: TransactionRequest[] = []
+  for (const a in adapterCalls) {
+    const oracleId = viem.hexToString(
+      viem.trim(
+        (await client.readContract({
+          abi: IERC7412.abi,
+          address: a as viem.Address,
+          functionName: 'oracleId',
+          args: []
+        })) as viem.Hex,
+        { dir: 'right' }
+      )
+    )
+
+    const adapter = adapters.find((a) => a.getOracleId() === oracleId)
+    if (adapter === undefined) {
+      throw new Error(
+        `oracle ${oracleId} not supported (supported oracles: ${Array.from(adapters.map((a) => a.getOracleId())).join(',')})`
+      )
+    }
+
+    const offchainDataCalls = await adapter.fetchOffchainData(client, a as viem.Address, adapterCalls[a as viem.Address])
+
+    for (const call of offchainDataCalls) {
+      priceUpdateTxs.push({
+        from: getWETHAddress(await client.getChainId()),
+        to: a as viem.Address,
+        value: call.fee,
+        data: viem.encodeFunctionData({
+          abi: IERC7412.abi,
+          functionName: 'fulfillOracleQuery',
+          args: [call.arg]
+        })
+      })
+    }
+  }
+
+  return priceUpdateTxs
 }
