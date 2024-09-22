@@ -66,20 +66,34 @@ export function createErc7412WalletActions(adapters: OracleAdapter[]) {
           value: args.value
         }
         const preparedTxn = await actions.prepareTransactionRequest(baseTxn)
+        const execResult = await callWithOffchainData([baseTxn], client, adapters)
+        const txnData = preparedTxn.data
+
+        if (preparedTxn.to !== args.address) {
+          if (txnData === undefined) {
+            throw new Error('prepared txn should have needed data for multicall')
+          }
+          return {
+            request: {
+              ...preparedTxn,
+              abi: ITrustedMulticallForwarder.abi,
+              address: preparedTxn.to,
+              functionName: 'aggregate3Value',
+              args: viem.decodeFunctionData({ abi: ITrustedMulticallForwarder.abi, data: txnData })
+            } as any,
+            result: viem.decodeFunctionResult({
+              ...args,
+              data: execResult[0]
+            }) as never
+          }
+        }
+
+        console.log('execution result', execResult)
         return {
-          request:
-            preparedTxn.to === args.address
-              ? args
-              : {
-                  ...preparedTxn,
-                  abi: ITrustedMulticallForwarder.abi,
-                  address: preparedTxn.to,
-                  functionName: 'aggregate3Value',
-                  args: viem.decodeFunctionData({ abi: ITrustedMulticallForwarder.abi, data: preparedTxn.data ?? '0x' })
-                },
+          request: args,
           result: viem.decodeFunctionResult({
             ...args,
-            data: (await callWithOffchainData([baseTxn], client, adapters))[0]
+            data: execResult[0]
           })
         } as any // TODO
       }

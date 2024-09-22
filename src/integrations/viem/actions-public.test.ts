@@ -147,7 +147,6 @@ describe('integrations/viem/actions-public', () => {
 
         // for the prepare call just return exactly what we are given
         jest.mocked(actionPrepareTransactionRequest).mockImplementation(async (c, v) => {
-          console.log('v', v)
           return v
         })
 
