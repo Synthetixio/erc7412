@@ -33,7 +33,8 @@
   },
   "peerDependencies": {
     "@pythnetwork/pyth-evm-js": "^1.25.0",
-    "@pythnetwork/pyth-sdk-solidity": "^2.2.1"
+    "@pythnetwork/pyth-sdk-solidity": "^2.2.1",
+    "@hackbg/chainlink-datastreams-consumer": "git+https://github.com/hackbg/chainlink-datastreams-consumer.git"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
