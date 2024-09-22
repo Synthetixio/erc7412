@@ -1,0 +1,5 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`integrations/viem/actions-wallet createErc7412WalletActions() prepareMulticallTransactionRequest() fails if insufficient arguments 1`] = `"must have at least 1 transaction in multicall"`;
+
+exports[`integrations/viem/actions-wallet createErc7412WalletActions() simulateContract() handles data field missing from prepared txn 1`] = `[Error: prepared txn should have needed data for multicall]`;

@@ -10,7 +10,7 @@ contract OffchainGreeter is IERC7412 {
 
 	function greet(uint greetingCount) public view returns (string memory) {
         if (greetingCount > greetings.length || greetingCount == 0) {
-            revert IERC7412.OracleDataRequired(address(this), abi.encodePacked(greetings.length + 1));
+            revert IERC7412.OracleDataRequired(address(this), abi.encodePacked(greetings.length + 1), FEE);
         }
 
         return greetings[greetingCount - 1];

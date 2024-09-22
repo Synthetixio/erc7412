@@ -1,0 +1,3 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`integrations/viem/actions-public createErc7412PublicActions() multicall() errors if nothing to multicall 1`] = `"must have at least one call for multicall"`;

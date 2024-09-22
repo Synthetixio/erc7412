@@ -1,108 +1,170 @@
-import * as viem from 'viem';
-import IERC7412 from '../out/IERC7412.sol/IERC7412.json';
-import { Adapter } from './adapter';
-import { parseError } from './parseError';
+import * as viem from 'viem'
+import IERC7412 from '../out/IERC7412.sol/IERC7412.json'
+import { type OracleAdapter } from './types'
+import { parseError } from './parseError'
 
-export { Adapter } from './adapter';
-export { DefaultAdapter } from './adapters/default';
+import ITrustedMulticallForwarder from '../out/ITrustedMulticallForwarder.sol/ITrustedMulticallForwarder.json'
+import { getWETHAddress } from './constants'
 
-type TransactionRequest = Pick<
-  viem.TransactionRequest,
-  'to' | 'data' | 'value'
->;
+const TRUSTED_MULTICALL_FORWARDER_ADDRESS: viem.Address = '0xE2C5658cC5C448B48141168f3e475dF8f65A1e3e'
 
-export class EIP7412 {
-  adapters: Map<string, Adapter>;
-  multicallFunc:
-    | ((txs: TransactionRequest[]) => TransactionRequest)
-    | undefined;
+export const LEGACY_ODR_ERROR = [
+  { type: 'error', name: 'OracleDataRequired', inputs: [{ type: 'address' }, { type: 'bytes' }] }
+]
 
-  constructor(
-    adapters?: Adapter[],
-    multicallFunc?: (txs: TransactionRequest[]) => TransactionRequest
-  ) {
-    this.adapters = new Map();
-    adapters?.forEach((adapter) => {
-      this.adapters.set(adapter.getOracleId(), adapter);
-    });
-    this.multicallFunc = multicallFunc;
+export type TransactionRequest = Pick<viem.TransactionRequest, 'to' | 'data' | 'value' | 'from'>
+
+export function makeTrustedForwarderMulticall(transactions: TransactionRequest[]): TransactionRequest {
+  const totalValue = transactions.reduce((val, txn) => {
+    return val + (txn.value ?? BigInt(0))
+  }, BigInt(0))
+
+  return {
+    from: transactions[transactions.length - 1].from,
+    to: TRUSTED_MULTICALL_FORWARDER_ADDRESS,
+    value: totalValue,
+    data: viem.encodeFunctionData({
+      abi: ITrustedMulticallForwarder.abi,
+      functionName: 'aggregate3Value',
+      args: [
+        transactions.map((txn) => ({
+          target: txn.to ?? viem.zeroAddress,
+          callData: txn.data ?? '0x',
+          value: txn.value ?? '0',
+          requireSuccess: true
+        }))
+      ]
+    })
+  }
+}
+
+export async function callWithOffchainData(
+  transactions: [TransactionRequest, ...TransactionRequest[]],
+  provider: Parameters<typeof viem.custom>[0],
+  adapters: OracleAdapter[],
+  maxIter = 5
+): Promise<[viem.Hex, ...viem.Hex[]]> {
+  const client = viem.createPublicClient({ transport: viem.custom(provider, { retryCount: 0 }) })
+
+  const prependedTxns: TransactionRequest[] = []
+  for (let i = 0; i < maxIter; i++) {
+    let result
+    try {
+      result = await client.call(makeTrustedForwarderMulticall([...prependedTxns, ...transactions] as TransactionRequest[]))
+    } catch (caughtErr) {
+      console.error('an error occured', caughtErr)
+      prependedTxns.push(...(await resolvePrependTransaction(caughtErr, client, adapters)))
+      continue
+    }
+    console.log('got result', result)
+    if (result.data === undefined) {
+      throw new Error('missing return data from multicall')
+    }
+
+    const datas: any[] = viem.decodeFunctionResult({
+      abi: ITrustedMulticallForwarder.abi,
+      functionName: 'aggregate3Value',
+      data: result.data
+    }) as any[]
+    return datas.slice(-transactions.length) as any
   }
 
-  async enableERC7412(
-    client: viem.PublicClient,
-    tx: TransactionRequest | TransactionRequest[]
-  ): Promise<TransactionRequest> {
-    const multicallCalls: TransactionRequest[] = Array.isArray(tx) ? tx : [tx];
+  throw new Error('erc7412 callback repeat exceeded')
+}
 
-    while (true) {
-      try {
-        if (multicallCalls.length == 1) {
-          await client.call(multicallCalls[0]);
-          return multicallCalls[0];
-        } else if (!this.multicallFunc) {
-          throw 'multicallFunc is not defined';
-        } else {
-          const multicallTxn = this.multicallFunc(multicallCalls);
-          await client.call(multicallTxn);
-          return multicallTxn;
-        }
-      } catch (error) {
-        let err: any;
+export function resolveAdapterCalls(
+  origError: any,
+  provider: Parameters<typeof viem.custom>[0]
+): Record<viem.Address, Array<{ query: viem.Hex; fee: bigint }>> {
+  try {
+    let err
+    try {
+      err = viem.decodeErrorResult({
+        abi: IERC7412.abi,
+        data: parseError(origError as viem.CallExecutionError)
+      })
+    } catch {
+      err = viem.decodeErrorResult({
+        abi: LEGACY_ODR_ERROR,
+        data: parseError(origError as viem.CallExecutionError)
+      })
+    }
+    if (err.errorName === 'Errors') {
+      const errorsList = err.args?.[0] as viem.Hex[]
 
-        try {
-          err = viem.decodeErrorResult({
-            abi: IERC7412.abi,
-            data: parseError(error as viem.CallExecutionError),
-          });
-        } catch (decodeErr) {}
+      const adapterCalls: Record<viem.Address, Array<{ query: viem.Hex; fee: bigint }>> = {}
+      for (const error of errorsList) {
+        const subAdapterCalls = resolveAdapterCalls(error, provider)
 
-        if (err?.errorName === 'OracleDataRequired') {
-          const oracleQuery = err.args![1] as viem.Hex;
-          const oracleAddress = err.args![0] as viem.Address;
-
-          const oracleId = viem.hexToString(
-            viem.trim(
-              (await client.readContract({
-                abi: IERC7412.abi,
-                address: oracleAddress,
-                functionName: 'oracleId',
-                args: [],
-              })) as unknown as viem.Hex,
-              { dir: 'right' }
-            )
-          );
-
-          const adapter = this.adapters.get(oracleId);
-          if (adapter === undefined) {
-            throw new Error(
-              `oracle ${oracleId} not supported (supported oracles: ${Array.from(
-                this.adapters.keys()
-              ).join(',')})`
-            );
+        for (const a in subAdapterCalls) {
+          if (adapterCalls[a as viem.Address] === undefined) {
+            adapterCalls[a as viem.Address] = []
           }
 
-          const signedRequiredData = await adapter.fetchOffchainData(
-            client,
-            oracleAddress,
-            oracleQuery
-          );
-
-          const priceUpdateTx = {
-            to: err.args![0] as viem.Address,
-            data: viem.encodeFunctionData({
-              abi: IERC7412.abi,
-              functionName: 'fulfillOracleQuery',
-              args: [signedRequiredData],
-            }),
-          };
-          multicallCalls.unshift(priceUpdateTx);
-        } else if (err?.errorName === 'FeeRequired') {
-          const requiredFee = err.args![0] as bigint;
-          multicallCalls[0].value = requiredFee;
-        } else {
-          throw error;
+          adapterCalls[a as viem.Address].push(...subAdapterCalls[a as viem.Address])
         }
       }
+
+      return adapterCalls
+    } else if (err.errorName === 'OracleDataRequired') {
+      const oracleQuery = err.args?.[1] as viem.Hex
+      const oracleAddress = err.args?.[0] as viem.Address
+      const fee = err.args?.[2] as bigint
+
+      return { [oracleAddress]: [{ query: oracleQuery, fee }] }
+    }
+  } catch (err) {
+    console.log('had unexpected failure', err)
+  }
+
+  // if we get to this point then we cant parse the error so we should make sure to send the original
+  throw new Error(`could not parse error. can it be decoded elsewhere? ${JSON.stringify(origError)}`)
+}
+
+export async function resolvePrependTransaction(
+  origError: any,
+  provider: Parameters<typeof viem.custom>[0],
+  adapters: OracleAdapter[]
+): Promise<TransactionRequest[]> {
+  const client = viem.createPublicClient({ transport: viem.custom(provider, { retryCount: 0 }) })
+  const adapterCalls = resolveAdapterCalls(origError, provider)
+
+  const priceUpdateTxs: TransactionRequest[] = []
+  for (const a in adapterCalls) {
+    const oracleId = viem.hexToString(
+      viem.trim(
+        (await client.readContract({
+          abi: IERC7412.abi,
+          address: a as viem.Address,
+          functionName: 'oracleId',
+          args: []
+        })) as viem.Hex,
+        { dir: 'right' }
+      )
+    )
+
+    const adapter = adapters.find((a) => a.getOracleId() === oracleId)
+    if (adapter === undefined) {
+      throw new Error(
+        `oracle ${oracleId} not supported (supported oracles: ${Array.from(adapters.map((a) => a.getOracleId())).join(',')})`
+      )
+    }
+
+    const offchainDataCalls = await adapter.fetchOffchainData(client, a as viem.Address, adapterCalls[a as viem.Address])
+
+    for (const call of offchainDataCalls) {
+      priceUpdateTxs.push({
+        from: getWETHAddress(await client.getChainId()),
+        to: a as viem.Address,
+        value: call.fee,
+        data: viem.encodeFunctionData({
+          abi: IERC7412.abi,
+          functionName: 'fulfillOracleQuery',
+          args: [call.arg]
+        })
+      })
     }
   }
+
+  return priceUpdateTxs
 }

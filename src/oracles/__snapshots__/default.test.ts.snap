@@ -1,0 +1,3 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`oracles/default.ts DefaultAdapter fetchOffchainData() shows appropriate error when non 200 response comes back 1`] = `"error fetching data (404): 0x2224"`;
