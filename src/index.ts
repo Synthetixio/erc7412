@@ -3,8 +3,12 @@ import IERC7412 from '../out/IERC7412.sol/IERC7412.json'
 import { type OracleAdapter } from './types'
 import { parseError } from './parseError'
 
+import Debug from 'debug'
+
 import ITrustedMulticallForwarder from '../out/ITrustedMulticallForwarder.sol/ITrustedMulticallForwarder.json'
 import { getWETHAddress } from './constants'
+
+const debug = Debug('erc7412')
 
 const TRUSTED_MULTICALL_FORWARDER_ADDRESS: viem.Address = '0xE2C5658cC5C448B48141168f3e475dF8f65A1e3e'
 
@@ -52,11 +56,9 @@ export async function callWithOffchainData(
     try {
       result = await client.call(makeTrustedForwarderMulticall([...prependedTxns, ...transactions] as TransactionRequest[]))
     } catch (caughtErr) {
-      console.error('an error occured', caughtErr)
       prependedTxns.push(...(await resolvePrependTransaction(caughtErr, client, adapters)))
       continue
     }
-    console.log('got result', result)
     if (result.data === undefined) {
       throw new Error('missing return data from multicall')
     }
@@ -89,6 +91,7 @@ export function resolveAdapterCalls(
         data: parseError(origError as viem.CallExecutionError)
       })
     }
+    debug('parsing error of type', err.errorName)
     if (err.errorName === 'Errors') {
       const errorsList = err.args?.[0] as viem.Hex[]
 
@@ -114,7 +117,7 @@ export function resolveAdapterCalls(
       return { [oracleAddress]: [{ query: oracleQuery, fee }] }
     }
   } catch (err) {
-    console.log('had unexpected failure', err)
+    console.error('had unexpected failure', err)
   }
 
   // if we get to this point then we cant parse the error so we should make sure to send the original
@@ -165,6 +168,8 @@ export async function resolvePrependTransaction(
       })
     }
   }
+
+  debug('adding oracle update calls', priceUpdateTxs.length)
 
   return priceUpdateTxs
 }
