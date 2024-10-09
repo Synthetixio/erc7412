@@ -1,7 +1,9 @@
-import ChainlinkDataStreamsConsumer from '@hackbg/chainlink-datastreams-consumer'
+import type ChainlinkDataStreamsConsumer from '@hackbg/chainlink-datastreams-consumer'
 import { type OracleAdapter } from '../types'
 import * as viem from 'viem'
-import { type Address } from 'viem'
+import Debug from 'debug'
+
+const debug = Debug('erc7412:oracles:chainlink-datastreams')
 
 export class ChainlinkAdapter implements OracleAdapter {
   private readonly api: ChainlinkDataStreamsConsumer
@@ -37,17 +39,26 @@ export class ChainlinkAdapter implements OracleAdapter {
 
     const reports = []
     for (const t in staleFeedIds) {
-      reports.push(
-        await this.api.fetchFeeds({
-          timestamp: t,
-          feeds: staleFeedIds[t]
-        })
-      )
+      debug('fetching feeds', t, staleFeedIds[t])
+      const feedResults = await this.api.fetchFeeds({
+        timestamp: t,
+        feeds: staleFeedIds[t]
+      })
+
+      for (const r in feedResults) {
+        console.log('got report!', (feedResults[r] as any)[0])
+        reports.push((feedResults[r] as any)[0])
+      }
     }
+
+    console.log('got report', reports)
 
     return reports.map((r) => ({
       // TODO: fix type
-      arg: viem.encodeAbiParameters([{ type: 'bytes' }, { type: 'bytes' }], [r.fullReport as unknown as viem.Hex, '0x']),
+      arg: viem.encodeAbiParameters(
+        [{ type: 'bytes' }, { type: 'bytes' }],
+        [(r as unknown as any).fullReport as viem.Hex, '0x']
+      ),
       fee: totalFee / BigInt(reports.length)
     }))
   }
